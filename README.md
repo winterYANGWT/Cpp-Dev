@@ -106,17 +106,18 @@ The baseline test target should stay dependency-free. It should compile a small 
 
 ## Quality Commands
 
-The `scripts/` directory provides the standard local quality commands:
+The `scripts/` directory provides the standard local quality gate:
 
-- `python3 scripts/quality.py format` formats C++ headers and sources.
-- `python3 scripts/quality.py format --check` verifies formatting without rewriting files.
-- `python3 scripts/quality.py test` configures, builds, and runs CTest through the `quality` CMake preset.
-- `python3 scripts/quality.py tidy` configures a compile database and runs `clang-tidy`.
-- `python3 scripts/quality.py check` runs the full local quality gate.
+```sh
+python3 scripts/quality.py check
+```
 
-By default, formatting and `clang-tidy` only check project-owned code under `include/`, `src/`, `test/`, and `tests/`. They skip common dependency, generated, and build directories, and they do not include `examples/` unless `--include-examples` is passed to `format`, `tidy`, or `check`. The tidy runner also filters clang-tidy's non-user-code summary noise so diagnostics stay focused on project files.
+The quality runner formats project-owned C++ files, runs CTest through the
+`quality` CMake preset, and runs `clang-tidy` on real source translation units
+plus generated header smoke translation units. See [scripts/README.md](scripts/README.md)
+for the full command list, file scope rules, and header-check strategy.
 
-Use `python` instead of `python3` on platforms where that is the Python 3 executable. The quality runner uses the `quality` CMake preset and `build/quality` directory by default.
+Use `python` instead of `python3` on platforms where that is the Python 3 executable.
 
 ## Project Rename Workflow
 
@@ -124,7 +125,7 @@ After generating a repository from this template, rename the placeholder project
 
 Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents and renames placeholder paths such as the public include directory, source file, test file, and package config template.
 
-Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run and finish by running the quality gate.
+Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run and finish by running the quality gate. See [scripts/README.md](scripts/README.md) for script usage details.
 
 ## Install Contract
 

@@ -1,0 +1,36 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "quality",
+      "displayName": "Quality",
+      "description": "Configure the local quality build.",
+      "binaryDir": "${sourceDir}/build/quality",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "quality",
+      "displayName": "Quality",
+      "configurePreset": "quality"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "quality",
+      "displayName": "Quality",
+      "configurePreset": "quality",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

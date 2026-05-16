@@ -4,6 +4,43 @@
 
 The template should stay small. Individual libraries may add their own dependencies, modules, examples, tools, and platform-specific build logic, but they should keep the public layout and package interface consistent.
 
+## Quick Start
+
+Create a new repository from GitHub's `Use this template` button, then initialize the placeholder project name before adding real code.
+
+Linux, macOS, WSL, or Git Bash:
+
+```sh
+git clone <new-repository-url>
+cd <new-repository-directory>
+python3 scripts/rename_project.py --dry-run
+python3 scripts/rename_project.py
+python3 scripts/quality.py check
+```
+
+Windows PowerShell:
+
+```powershell
+git clone <new-repository-url>
+Set-Location <new-repository-directory>
+python scripts/rename_project.py --dry-run
+python scripts/rename_project.py
+python scripts/quality.py check
+```
+
+When no project name is provided, `rename_project.py` infers it from the repository directory name. GitHub repository names may use hyphens; inferred names convert hyphens to underscores and lowercase the result.
+
+You can also pass the project name explicitly:
+
+```sh
+python3 scripts/rename_project.py my_library --dry-run
+python3 scripts/rename_project.py my_library
+```
+
+`my_library` is only an example. Explicit project names must already use lowercase snake_case.
+
+After renaming, replace the placeholder header, source, and test content with the real library API and behavior.
+
 ## Naming
 
 Project names use lowercase English words separated by underscores.
@@ -61,6 +98,32 @@ Install support is required by default. The install option should be named `{pro
 
 Installed libraries must be consumable through CMake package config mode. A downstream project should be able to use `find_package({project_name} CONFIG REQUIRED)` and link against `{project_name}::{project_name}`.
 
+## Testing
+
+The template uses CTest as the default test framework.
+
+The baseline test target should stay dependency-free. It should compile a small executable from `test/`, link it against `{project_name}::{project_name}`, and register it with CTest. Projects that need richer assertions may add GoogleTest, Catch2, or another framework locally, but those dependencies are not part of the shared template baseline.
+
+## Quality Commands
+
+The `scripts/` directory provides the standard local quality commands:
+
+- `python3 scripts/quality.py format` formats C++ headers and sources.
+- `python3 scripts/quality.py format --check` verifies formatting without rewriting files.
+- `python3 scripts/quality.py test` configures, builds, and runs CTest through the `quality` CMake preset.
+- `python3 scripts/quality.py tidy` configures a compile database and runs `clang-tidy`.
+- `python3 scripts/quality.py check` runs the full local quality gate.
+
+Use `python` instead of `python3` on platforms where that is the Python 3 executable. The quality runner uses the `quality` CMake preset and `build/quality` directory by default.
+
+## Project Rename Workflow
+
+After generating a repository from this template, rename the placeholder project before adding real code.
+
+Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents and renames placeholder paths such as the public include directory, source file, test file, and package config template.
+
+Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run and finish by running the quality gate.
+
 ## Install Contract
 
 Installing a library should install:
@@ -72,6 +135,10 @@ Installing a library should install:
 - A package version file matching the project version.
 
 The install tree should not expose `src/` paths or any source-tree-only include directories.
+
+## License
+
+New libraries created from this template default to GPL-3.0. Projects may intentionally choose another license, but the template baseline keeps GPL-3.0 unless changed by the project owner.
 
 ## Template Principles
 

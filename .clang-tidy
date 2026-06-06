@@ -39,7 +39,7 @@ Checks: >
   -bugprone-unused-return-value
 
 WarningsAsErrors: "*"
-HeaderFilterRegex: "(include|tests)/.*\\.h$|(src|tests)/.*\\.(cc|cpp)$"
+HeaderFilterRegex: "(include|test|tests)/.*\\.(h|hh|hpp|hxx|cc|cpp|cxx)$|src/.*\\.(cc|cpp|cxx)$"
 
 CheckOptions:
   - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }

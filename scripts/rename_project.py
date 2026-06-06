@@ -96,10 +96,15 @@ def export_macro_name(project_name: str) -> str:
     return f"{project_name.upper()}_EXPORT"
 
 
+def header_guard_name(project_name: str) -> str:
+    return f"{project_name.upper()}_{project_name.upper()}_H_"
+
+
 def replacement_pairs(old_name: str, new_name: str) -> list[tuple[str, str]]:
     return [
         (old_name, new_name),
         (export_macro_name(old_name), export_macro_name(new_name)),
+        (header_guard_name(old_name), header_guard_name(new_name)),
     ]
 
 

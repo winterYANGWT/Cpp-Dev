@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import shlex
@@ -21,7 +22,7 @@ CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
 STRICT_CXX20_FLAGS = {"-std=c++20", "-std:c++20", "/std:c++20"}
 CMAKE_CONFIGURE_ARGS_ENV = "CPP_DEV_CMAKE_CONFIGURE_ARGS"
 MACOS_SDKROOT_ENV = "SDKROOT"
-OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "/Fo"}
+OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "/Fo", "/Fd"}
 SKIPPED_DIRECTORY_NAMES = {
     ".cache",
     ".deps",
@@ -217,6 +218,32 @@ def verify_standard_cpp() -> None:
     print("Strict C++20 compile mode verified.", flush=True)
 
 
+def windows_command_line_tokens(command: str) -> list[str] | None:
+    if os.name != "nt":
+        return None
+
+    try:
+        argc = ctypes.c_int()
+        shell32 = ctypes.windll.shell32
+        shell32.CommandLineToArgvW.argtypes = [
+            ctypes.c_wchar_p,
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.c_wchar_p)
+        kernel32 = ctypes.windll.kernel32
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        argv = shell32.CommandLineToArgvW(command, ctypes.byref(argc))
+        if not argv:
+            return None
+        try:
+            return [argv[index] for index in range(argc.value)]
+        finally:
+            kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
 def compile_command_tokens(entry: dict[str, object]) -> list[str] | None:
     arguments = entry.get("arguments")
     if isinstance(arguments, list):
@@ -224,7 +251,10 @@ def compile_command_tokens(entry: dict[str, object]) -> list[str] | None:
 
     command = entry.get("command")
     if isinstance(command, str):
-        return shlex.split(command)
+        windows_tokens = windows_command_line_tokens(command)
+        if windows_tokens is not None:
+            return windows_tokens
+        return shlex.split(command, posix=os.name != "nt")
 
     return None
 
@@ -295,6 +325,8 @@ def smoke_compile_tokens(
             continue
         if token.startswith("/Fo") and token != "/Fo":
             continue
+        if token.startswith("/Fd") and token != "/Fd":
+            continue
         if source_file is not None and token_matches_path(token, source_file, base_dir):
             continue
         flags.append(token)
@@ -356,7 +388,7 @@ def write_header_smoke_compile_database(
     smoke_entries = [
         {
             "directory": str(directory),
-            "command": shlex.join(smoke_compile_tokens(base_entry, smoke_file)),
+            "arguments": smoke_compile_tokens(base_entry, smoke_file),
             "file": str(smoke_file),
         }
         for smoke_file in smoke_files

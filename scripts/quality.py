@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import shutil
 import subprocess
@@ -16,6 +17,8 @@ HEADER_SMOKE_DIR = BUILD_DIR / "header_smoke"
 CXX_HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx")
 CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
+STRICT_CXX20_FLAGS = {"-std=c++20", "-std:c++20", "/std:c++20"}
+CMAKE_CONFIGURE_ARGS_ENV = "CPP_DEV_CMAKE_CONFIGURE_ARGS"
 OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "/Fo"}
 SKIPPED_DIRECTORY_NAMES = {
     ".cache",
@@ -120,6 +123,60 @@ def compile_database_source_files(
         str(path.relative_to(ROOT_DIR))
         for path in sorted(files)
     ]
+
+
+def compile_database_cpp_entries(
+    entries: list[dict[str, object]] | None,
+) -> list[tuple[Path, list[str]]]:
+    if entries is None:
+        return []
+
+    compile_entries: list[tuple[Path, list[str]]] = []
+    for entry in entries:
+        file = compile_command_file(entry)
+        tokens = compile_command_tokens(entry)
+        if file is None or tokens is None or file.suffix not in CXX_SOURCE_SUFFIXES:
+            continue
+        if not is_project_owned_file(file):
+            continue
+        compile_entries.append((file, tokens))
+    return compile_entries
+
+
+def describe_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT_DIR))
+    except ValueError:
+        return str(path)
+
+
+def verify_standard_cpp() -> None:
+    entries = compile_database_entries()
+    compile_entries = compile_database_cpp_entries(entries)
+    if not compile_entries:
+        print("No C++ compile commands found; skipping standard check.", flush=True)
+        return
+
+    extension_entries: list[str] = []
+    missing_standard_entries: list[str] = []
+    for file, tokens in compile_entries:
+        if any(token.startswith("-std=gnu++") for token in tokens):
+            extension_entries.append(describe_path(file))
+        if not any(token in STRICT_CXX20_FLAGS for token in tokens):
+            missing_standard_entries.append(describe_path(file))
+
+    if extension_entries:
+        raise SystemExit(
+            "GNU C++ extension mode is not allowed. Offending files:\n"
+            + "\n".join(f"  {path}" for path in extension_entries)
+        )
+    if missing_standard_entries:
+        raise SystemExit(
+            "Expected strict C++20 compile flags. Missing for files:\n"
+            + "\n".join(f"  {path}" for path in missing_standard_entries)
+        )
+
+    print("Strict C++20 compile mode verified.", flush=True)
 
 
 def compile_command_tokens(entry: dict[str, object]) -> list[str] | None:
@@ -289,15 +346,29 @@ def command_format(args: argparse.Namespace) -> None:
         run(["clang-format", "-i", *files])
 
 
-def command_test(_: argparse.Namespace) -> None:
-    run(["cmake", "--preset", "quality"])
+def cmake_configure_command() -> list[str]:
+    extra_args = os.environ.get(CMAKE_CONFIGURE_ARGS_ENV, "").strip()
+    if not extra_args:
+        return ["cmake", "--preset", "quality"]
+    return [
+        "cmake",
+        "--preset",
+        "quality",
+        *shlex.split(extra_args, posix=os.name != "nt"),
+    ]
+
+
+def configure_quality_build() -> None:
+    run(cmake_configure_command())
+    verify_standard_cpp()
+
+
+def run_quality_tests() -> None:
     run(["cmake", "--build", "--preset", "quality"])
     run(["ctest", "--preset", "quality"])
 
 
-def command_tidy(_: argparse.Namespace) -> None:
-    run(["cmake", "--preset", "quality"])
-
+def run_quality_tidy() -> None:
     entries = compile_database_entries()
     source_files = compile_database_source_files(entries)
     if source_files is None:
@@ -334,25 +405,25 @@ def command_tidy(_: argparse.Namespace) -> None:
         )
 
 
+def command_test(_: argparse.Namespace) -> None:
+    configure_quality_build()
+    run_quality_tests()
+
+
+def command_tidy(_: argparse.Namespace) -> None:
+    configure_quality_build()
+    run_quality_tidy()
+
+
 def command_check(_: argparse.Namespace) -> None:
     command_format(
         argparse.Namespace(
             check=True,
         ),
     )
-    command_test(argparse.Namespace())
-    command_tidy(argparse.Namespace())
-
-
-def add_include_examples_option(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--include-examples",
-        action="store_true",
-        help=(
-            "Deprecated compatibility flag; project-owned C++ files are "
-            "checked by default."
-        ),
-    )
+    configure_quality_build()
+    run_quality_tests()
+    run_quality_tidy()
 
 
 def parse_args() -> argparse.Namespace:
@@ -365,18 +436,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Verify formatting without rewriting files.",
     )
-    add_include_examples_option(format_parser)
     format_parser.set_defaults(func=command_format)
 
     test_parser = subparsers.add_parser("test", help="Build and run CTest.")
     test_parser.set_defaults(func=command_test)
 
     tidy_parser = subparsers.add_parser("tidy", help="Run clang-tidy.")
-    add_include_examples_option(tidy_parser)
     tidy_parser.set_defaults(func=command_tidy)
 
     check_parser = subparsers.add_parser("check", help="Run the full quality gate.")
-    add_include_examples_option(check_parser)
     check_parser.set_defaults(func=command_check)
 
     return parser.parse_args()

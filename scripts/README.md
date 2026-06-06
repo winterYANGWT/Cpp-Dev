@@ -33,6 +33,12 @@ This is intended for CI and one-off verification of build variants.
 CPP_DEV_CMAKE_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
 ```
 
+On macOS, `quality.py` automatically passes the active macOS SDK as `CMAKE_OSX_SYSROOT` when `xcrun` is available. You can set `SDKROOT` yourself to pin the SDK used by CMake and `clang-tidy`:
+
+```sh
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+```
+
 On Windows with vcpkg-provided GTest, run from an MSVC environment and pin CMake to `cl`:
 
 ```powershell
@@ -78,4 +84,4 @@ python3 scripts/rename_project.py my_library --dry-run
 python3 scripts/rename_project.py my_library
 ```
 
-The script replaces `project_name` in text files, replaces export macro tokens such as `PROJECT_NAME_EXPORT`, and renames placeholder paths such as the public include directory, source file, test file, and package config template. It does not replace CMake's `${PROJECT_NAME}` variable. Use `--dry-run` first, then run `python3 scripts/quality.py check` after renaming.
+The script replaces `project_name` in text files, replaces export macro tokens such as `PROJECT_NAME_EXPORT`, replaces template header guards such as `PROJECT_NAME_PROJECT_NAME_H_`, and renames placeholder paths such as the public include directory, source file, test file, and package config template. It does not replace CMake's `${PROJECT_NAME}` variable. Use `--dry-run` first, then run `python3 scripts/quality.py check` after renaming.

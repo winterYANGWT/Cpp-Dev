@@ -57,6 +57,7 @@ macOS with Homebrew:
 ```sh
 brew install cmake googletest llvm
 export PATH="$(brew --prefix llvm)/bin:$PATH"
+export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 ```
 
 Windows with MSVC Build Tools, Chocolatey, and vcpkg:
@@ -117,6 +118,8 @@ This is not a strict, unmodified Google C++ style profile. The template accepts 
 
 Use Doxygen comments for public API documentation. Prefer `/** ... */` block comments placed on their own line immediately before the symbol they document. Avoid trailing Doxygen forms after declarations or statements.
 
+Use standard include guards for public headers. Do not use non-standard pragma-based header guards. Guard names should follow the installed include path, be uppercase, and end in `_H_`, such as `PROJECT_NAME_PROJECT_NAME_H_` for `include/project_name/project_name.h`.
+
 ## CMake Contract
 
 Every library should use CMake `3.21` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
@@ -166,7 +169,7 @@ ctest --preset asan-ubsan
 
 After generating a repository from this template, rename the placeholder project before adding real code.
 
-Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents, updates generated export macro references such as `PROJECT_NAME_EXPORT`, and renames placeholder paths such as the public include directory, source file, test file, and package config template.
+Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents, updates generated export macro references such as `PROJECT_NAME_EXPORT`, updates template header guards such as `PROJECT_NAME_PROJECT_NAME_H_`, and renames placeholder paths such as the public include directory, source file, test file, and package config template.
 
 Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run, replace the template README with the new library's own README, and finish by running the quality gate. See [scripts/README.md](scripts/README.md) for script usage details.
 

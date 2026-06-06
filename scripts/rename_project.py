@@ -92,18 +92,33 @@ def read_text(path: Path) -> str | None:
         return None
 
 
+def export_macro_name(project_name: str) -> str:
+    return f"{project_name.upper()}_EXPORT"
+
+
+def replacement_pairs(old_name: str, new_name: str) -> list[tuple[str, str]]:
+    return [
+        (old_name, new_name),
+        (export_macro_name(old_name), export_macro_name(new_name)),
+    ]
+
+
 def replace_file_contents(
     files: list[Path], old_name: str, new_name: str, dry_run: bool
 ) -> list[Path]:
+    replacements = replacement_pairs(old_name, new_name)
     changed: list[Path] = []
     for path in files:
         text = read_text(path)
-        if text is None or old_name not in text:
+        if text is None or not any(old in text for old, _ in replacements):
             continue
         changed.append(path)
         if dry_run:
             continue
-        path.write_text(text.replace(old_name, new_name), encoding="utf-8")
+        updated = text
+        for old, new in replacements:
+            updated = updated.replace(old, new)
+        path.write_text(updated, encoding="utf-8")
     return changed
 
 

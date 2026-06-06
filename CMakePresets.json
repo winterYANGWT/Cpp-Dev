@@ -7,27 +7,112 @@
   },
   "configurePresets": [
     {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Configure a Debug build.",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Configure a Release build.",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
       "name": "quality",
       "displayName": "Quality",
       "description": "Configure the local quality build.",
       "binaryDir": "${sourceDir}/build/quality",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "project_name_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "displayName": "ASan UBSan",
+      "description": "Configure a Debug build with AddressSanitizer and UndefinedBehaviorSanitizer.",
+      "binaryDir": "${sourceDir}/build/asan-ubsan",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "project_name_ENABLE_SANITIZERS": "ON",
+        "project_name_WARNINGS_AS_ERRORS": "ON"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "quality",
-      "displayName": "Quality",
-      "configurePreset": "quality"
-    }
-  ],
-  "testPresets": [
+      "name": "debug",
+      "displayName": "Debug",
+      "configurePreset": "debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "configurePreset": "release",
+      "configuration": "Release"
+    },
     {
       "name": "quality",
       "displayName": "Quality",
       "configurePreset": "quality",
+      "configuration": "Debug"
+    },
+    {
+      "name": "asan-ubsan",
+      "displayName": "ASan UBSan",
+      "configurePreset": "asan-ubsan",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "configurePreset": "debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "configurePreset": "release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "quality",
+      "displayName": "Quality",
+      "configurePreset": "quality",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "displayName": "ASan UBSan",
+      "configurePreset": "asan-ubsan",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       }

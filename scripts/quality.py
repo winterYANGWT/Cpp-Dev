@@ -8,6 +8,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -19,6 +20,7 @@ CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
 STRICT_CXX20_FLAGS = {"-std=c++20", "-std:c++20", "/std:c++20"}
 CMAKE_CONFIGURE_ARGS_ENV = "CPP_DEV_CMAKE_CONFIGURE_ARGS"
+MACOS_SDKROOT_ENV = "SDKROOT"
 OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "/Fo"}
 SKIPPED_DIRECTORY_NAMES = {
     ".cache",
@@ -38,9 +40,44 @@ SKIPPED_DIRECTORY_NAMES = {
 }
 
 
+def macos_sdkroot() -> str | None:
+    if sys.platform != "darwin":
+        return None
+
+    sdkroot = os.environ.get(MACOS_SDKROOT_ENV, "").strip()
+    if sdkroot:
+        return sdkroot
+
+    xcrun = shutil.which("xcrun")
+    if xcrun is None:
+        return None
+
+    result = subprocess.run(
+        [xcrun, "--sdk", "macosx", "--show-sdk-path"],
+        cwd=ROOT_DIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+
+    sdkroot = result.stdout.strip()
+    return sdkroot if sdkroot else None
+
+
+def command_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    sdkroot = macos_sdkroot()
+    if sdkroot and not env.get(MACOS_SDKROOT_ENV):
+        env[MACOS_SDKROOT_ENV] = sdkroot
+    return env
+
+
 def run(command: list[str]) -> None:
     print("+ " + " ".join(command), flush=True)
-    subprocess.run(command, cwd=ROOT_DIR, check=True)
+    subprocess.run(command, cwd=ROOT_DIR, env=command_environment(), check=True)
 
 
 def is_clang_tidy_noise(line: str) -> bool:
@@ -65,6 +102,7 @@ def run_clang_tidy(command: list[str]) -> None:
     result = subprocess.run(
         command,
         cwd=ROOT_DIR,
+        env=command_environment(),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -346,16 +384,22 @@ def command_format(args: argparse.Namespace) -> None:
         run(["clang-format", "-i", *files])
 
 
+def has_cmake_cache_arg(args: list[str], name: str) -> bool:
+    return any(
+        arg == f"-D{name}"
+        or arg.startswith(f"-D{name}=")
+        or arg.startswith(f"-D{name}:")
+        for arg in args
+    )
+
+
 def cmake_configure_command() -> list[str]:
     extra_args = os.environ.get(CMAKE_CONFIGURE_ARGS_ENV, "").strip()
-    if not extra_args:
-        return ["cmake", "--preset", "quality"]
-    return [
-        "cmake",
-        "--preset",
-        "quality",
-        *shlex.split(extra_args, posix=os.name != "nt"),
-    ]
+    configure_args = shlex.split(extra_args, posix=os.name != "nt") if extra_args else []
+    sdkroot = macos_sdkroot()
+    if sdkroot and not has_cmake_cache_arg(configure_args, "CMAKE_OSX_SYSROOT"):
+        configure_args.append(f"-DCMAKE_OSX_SYSROOT={sdkroot}")
+    return ["cmake", "--preset", "quality", *configure_args]
 
 
 def configure_quality_build() -> None:

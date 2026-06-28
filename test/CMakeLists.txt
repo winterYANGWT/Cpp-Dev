@@ -1,4 +1,12 @@
-find_package(GTest CONFIG REQUIRED)
+find_package(GTest CONFIG QUIET)
+if(NOT GTest_FOUND)
+  message(FATAL_ERROR
+    "GoogleTest was not found via find_package(GTest CONFIG). "
+    "Install GoogleTest with your system package manager, such as apt, Homebrew, "
+    "or vcpkg, or build GoogleTest yourself and pass its package location to "
+    "CMake with CMAKE_PREFIX_PATH or GTest_DIR."
+  )
+endif()
 include(GoogleTest)
 
 add_executable(${PROJECT_NAME}_test

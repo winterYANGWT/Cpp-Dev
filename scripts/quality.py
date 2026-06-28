@@ -16,6 +16,10 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BUILD_DIR = ROOT_DIR / "build" / "quality"
 HEADER_SMOKE_DIR = BUILD_DIR / "header_smoke"
+PACKAGE_TEST_DIR = BUILD_DIR / "package"
+PACKAGE_INSTALL_DIR = PACKAGE_TEST_DIR / "install"
+PACKAGE_EXAMPLE_SOURCE_DIR = ROOT_DIR / "examples" / "universe_answer"
+PACKAGE_EXAMPLE_BUILD_DIR = PACKAGE_TEST_DIR / "universe_answer"
 CXX_HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx")
 CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
@@ -444,6 +448,36 @@ def run_quality_tests() -> None:
     run(["ctest", "--preset", "quality"])
 
 
+def run_package_consumer_test() -> None:
+    if PACKAGE_TEST_DIR.exists():
+        shutil.rmtree(PACKAGE_TEST_DIR)
+    PACKAGE_TEST_DIR.mkdir(parents=True)
+
+    run(["cmake", "--install", str(BUILD_DIR), "--prefix", str(PACKAGE_INSTALL_DIR)])
+    run(
+        [
+            "cmake",
+            "-S",
+            str(PACKAGE_EXAMPLE_SOURCE_DIR),
+            "-B",
+            str(PACKAGE_EXAMPLE_BUILD_DIR),
+            f"-DCMAKE_PREFIX_PATH={PACKAGE_INSTALL_DIR}",
+            "-DCMAKE_BUILD_TYPE=Debug",
+        ]
+    )
+    run(["cmake", "--build", str(PACKAGE_EXAMPLE_BUILD_DIR), "--config", "Debug"])
+    run(
+        [
+            "ctest",
+            "--test-dir",
+            str(PACKAGE_EXAMPLE_BUILD_DIR),
+            "--build-config",
+            "Debug",
+            "--output-on-failure",
+        ]
+    )
+
+
 def run_quality_tidy() -> None:
     entries = compile_database_entries()
     source_files = compile_database_source_files(entries)
@@ -491,6 +525,12 @@ def command_tidy(_: argparse.Namespace) -> None:
     run_quality_tidy()
 
 
+def command_package(_: argparse.Namespace) -> None:
+    configure_quality_build()
+    run_quality_tests()
+    run_package_consumer_test()
+
+
 def command_check(_: argparse.Namespace) -> None:
     command_format(
         argparse.Namespace(
@@ -499,6 +539,7 @@ def command_check(_: argparse.Namespace) -> None:
     )
     configure_quality_build()
     run_quality_tests()
+    run_package_consumer_test()
     run_quality_tidy()
 
 
@@ -519,6 +560,12 @@ def parse_args() -> argparse.Namespace:
 
     tidy_parser = subparsers.add_parser("tidy", help="Run clang-tidy.")
     tidy_parser.set_defaults(func=command_tidy)
+
+    package_parser = subparsers.add_parser(
+        "package",
+        help="Install the library and build the installed-package example.",
+    )
+    package_parser.set_defaults(func=command_package)
 
     check_parser = subparsers.add_parser("check", help="Run the full quality gate.")
     check_parser.set_defaults(func=command_check)

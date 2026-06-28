@@ -11,6 +11,7 @@ python3 scripts/quality.py format
 python3 scripts/quality.py format --check
 python3 scripts/quality.py tidy
 python3 scripts/quality.py test
+python3 scripts/quality.py package
 python3 scripts/quality.py check
 ```
 
@@ -22,7 +23,8 @@ Use `python` instead of `python3` on platforms where that is the Python 3 execut
 - `format --check` verifies formatting without rewriting files.
 - `tidy` configures the `quality` CMake preset and runs `clang-tidy`.
 - `test` configures, builds, and runs CTest through the `quality` preset.
-- `check` runs `format --check`, configures once, then runs tests and `clang-tidy`.
+- `package` installs the quality build to a temporary prefix, builds the `examples/universe_answer` downstream project against that installed package, and runs the example CTest suite.
+- `check` runs `format --check`, configures once, then runs tests, the package consumer check, and `clang-tidy`.
 
 ### CMake Configuration Overrides
 
@@ -47,6 +49,15 @@ $env:CXX = "cl"
 $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
 python scripts/quality.py check
 ```
+
+The template does not fetch GoogleTest automatically. If `find_package(GTest CONFIG)` fails, install GoogleTest with your preferred package manager or build it yourself, then rerun CMake with `CMAKE_PREFIX_PATH` or `GTest_DIR` pointing at the package config location.
+
+### Package Consumer Check
+
+`quality.py package` verifies the installed CMake package contract. It installs
+the current quality build under `build/quality/package/install`, configures
+`examples/universe_answer` with that prefix, builds the downstream
+`universe_answer_cli` executable, then runs CTest for the example project.
 
 ### File Scope
 

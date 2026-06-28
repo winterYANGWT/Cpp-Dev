@@ -41,6 +41,11 @@ python3 scripts/rename_project.py my_library
 
 After renaming, replace the placeholder header, source, test content, and README with the real library API, behavior, and project description.
 
+## Documentation
+
+- [Release Branching Contract](docs/release-branching.md): branch roles,
+  SemVer release flow, hotfix flow, and old-version support flow.
+
 ## Required Local Tools
 
 The quality gate expects CMake, a C++20 compiler, `clang-format`, `clang-tidy`, and GoogleTest.
@@ -70,6 +75,11 @@ $env:CXX = "cl"
 $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
 python scripts/quality.py check
 ```
+
+The template does not download GoogleTest for you. If CMake cannot find
+`GTest CONFIG`, install GoogleTest with your package manager or build it
+yourself, then pass the package location through `CMAKE_PREFIX_PATH` or
+`GTest_DIR`.
 
 ## Naming
 
@@ -138,11 +148,15 @@ Installed libraries must be consumable through CMake package config mode. A down
 
 ## Testing
 
-The template uses GoogleTest as the baseline test framework. Tests should resolve it with `find_package(GTest CONFIG REQUIRED)` and `include(GoogleTest)` in the test `CMakeLists.txt`.
+The `test/` directory contains GoogleTest-based tests for the template. See
+[test/README.md](test/README.md) for the test target contract, GTest dependency
+guidance, and commands for running tests.
 
-Link every GTest executable to `GTest::gtest_main` and register it with `gtest_discover_tests(<target>)`. Do not call `add_test(NAME ... COMMAND ...)` directly for GTest binaries.
+## Examples
 
-Place tests in `test/` using `.cc` files. Name cases `TEST(Suite, Case)` so CTest produces clear, unique names. Pass build-time-known inputs through `target_compile_definitions()` instead of per-test command-line arguments so discovery works without custom argv.
+The `examples/` directory contains small downstream projects that exercise the
+template's public package contract. See [examples/README.md](examples/README.md)
+for the current example list and build commands.
 
 ## Quality Commands
 
@@ -152,7 +166,7 @@ The `scripts/` directory provides the standard local quality gate:
 python3 scripts/quality.py check
 ```
 
-The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, and runs `clang-tidy` on real source translation units plus generated header smoke translation units. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
+The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units plus generated header smoke translation units. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
 
 Use `python` instead of `python3` on platforms where that is the Python 3 executable.
 

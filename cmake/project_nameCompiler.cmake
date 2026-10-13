@@ -27,6 +27,7 @@ function(project_name_configure_cxx_target target)
       target_compile_options(${target}
         PRIVATE
           -fsanitize=address,undefined
+          -fno-sanitize-recover=all
           -fno-omit-frame-pointer
       )
       target_link_options(${target}
@@ -69,6 +70,7 @@ function(project_name_configure_cxx_interface_target target)
       target_compile_options(${target}
         INTERFACE
           $<BUILD_INTERFACE:-fsanitize=address,undefined>
+          $<BUILD_INTERFACE:-fno-sanitize-recover=all>
           $<BUILD_INTERFACE:-fno-omit-frame-pointer>
       )
       target_link_options(${target}

@@ -79,6 +79,16 @@ Each header smoke file contains a single `#include` for one project header. The 
 
 Header smoke checks are useful for standalone include coverage, but they do not replace tests or examples that instantiate templates and exercise runtime behavior.
 
+## Contract Tests
+
+Scripts named `*_test.py` pin template engineering contracts that the C++ test suite cannot observe, such as compiler flags and preset settings. They use only the Python standard library and run from the repository root. CI runs every one of them in the `Contract tests` job.
+
+```sh
+for test in scripts/*_test.py; do python3 "$test"; done
+```
+
+- `sanitizer_contract_test.py` verifies that the `asan-ubsan` preset enables sanitizers and that every ASan/UBSan compile option block also passes `-fno-sanitize-recover=all`, so UndefinedBehaviorSanitizer reports fail the test run.
+
 ## `rename_project.py`
 
 `rename_project.py` renames the template placeholder project before real library code is added.

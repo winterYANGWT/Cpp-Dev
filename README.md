@@ -179,6 +179,8 @@ cmake --build --preset asan-ubsan
 ctest --preset asan-ubsan
 ```
 
+The `asan-ubsan` preset compiles with `-fno-sanitize-recover=all`, so any UndefinedBehaviorSanitizer report fails the test instead of only printing a diagnostic.
+
 ## Project Rename Workflow
 
 After generating a repository from this template, rename the placeholder project before adding real code.

@@ -12,6 +12,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  contracts:
+    name: Contract tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run contract tests
+        run: |
+          for test in scripts/*_test.py; do
+            python3 "$test"
+          done
+
   quality:
     name: Quality (${{ matrix.os }}, shared=${{ matrix.shared }})
     runs-on: ${{ matrix.os }}

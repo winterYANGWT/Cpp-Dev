@@ -39,7 +39,7 @@ python3 scripts/rename_project.py my_library
 
 `my_library` is only an example. Explicit project names must already use lowercase snake_case.
 
-After renaming, replace the placeholder header, source, test content, and README with the real library API, behavior, and project description.
+After renaming, replace the placeholder header, source, test content, and README with the real library API, behavior, and project description. Keep `TEMPLATE_VERSION`; it records which template version the project started from. See [Template Version](#template-version).
 
 ## Documentation
 
@@ -188,6 +188,17 @@ After generating a repository from this template, rename the placeholder project
 Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents, updates generated export macro references such as `PROJECT_NAME_EXPORT`, updates template header guards such as `PROJECT_NAME_PROJECT_NAME_H_`, and renames placeholder paths such as the public include directory, source file, test file, and package config template.
 
 Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run, replace the template README with the new library's own README, and finish by running the quality gate. See [scripts/README.md](scripts/README.md) for script usage details.
+
+## Template Version
+
+The root `TEMPLATE_VERSION` file records a CPP-DEV template version as a single `vX.Y.Z` line, such as `v0.1.0`.
+
+- In the template repository, it is the template's own release version. Update it for every template release, and tag the release commit with the same `vX.Y.Z` value.
+- In a generated project, it records the template version the project was created from or last synchronized with. Keep the file after renaming, and update it only when you adopt changes from a newer template release.
+
+`TEMPLATE_VERSION` is independent of the library version in `project(... VERSION ...)`. The library version describes the generated library's own API and package. The template version only describes which template baseline the build, quality, and packaging infrastructure follows.
+
+The template does not generate a version header. Whether a library exposes its own version in a header is a decision for that library.
 
 ## Install Contract
 

@@ -90,6 +90,7 @@ for test in scripts/*_test.py; do python3 "$test"; done
 - `gitignore_contract_test.py` verifies that user-local files such as `CMakeUserPresets.json` are ignored. It is skipped outside a git work tree.
 - `sanitizer_contract_test.py` verifies that the `asan-ubsan` preset enables sanitizers and that every ASan/UBSan compile option block also passes `-fno-sanitize-recover=all`, so UndefinedBehaviorSanitizer reports fail the test run.
 - `template_version_contract_test.py` verifies that the root `TEMPLATE_VERSION` file contains exactly one `vX.Y.Z` line.
+- `text_policy_contract_test.py` verifies that `.editorconfig` and `.gitattributes` keep the LF line ending policy, with CRLF for Windows batch scripts and common binary formats marked as binary, and that tracked text files are stored with LF. The `.gitattributes` and index checks are skipped outside a git work tree.
 
 ## `rename_project.py`
 

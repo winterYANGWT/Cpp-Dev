@@ -27,7 +27,7 @@ jobs:
           done
 
   quality:
-    name: Quality (${{ matrix.os }}, shared=${{ matrix.shared }})
+    name: Quality (${{ matrix.os }}, shared=${{ matrix.shared }}${{ matrix.compiler != 'default' && format(', {0}', matrix.compiler) || '' }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -39,6 +39,16 @@ jobs:
         shared:
           - OFF
           - ON
+        # The runner's default compiler; cl on Windows.
+        compiler:
+          - default
+        include:
+          - os: windows-latest
+            shared: OFF
+            compiler: clang-cl
+          - os: windows-latest
+            shared: ON
+            compiler: clang-cl
 
     steps:
       - name: Checkout
@@ -80,9 +90,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:CC = "cl"
-          $env:CXX = "cl"
-          $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
+          $compiler = if ("${{ matrix.compiler }}" -eq "clang-cl") { "clang-cl" } else { "cl" }
+          $env:CC = $compiler
+          $env:CXX = $compiler
+          $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DCMAKE_C_COMPILER=$compiler -DCMAKE_CXX_COMPILER=$compiler -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
           python scripts/quality.py check
 
   sanitizers:
@@ -106,3 +117,30 @@ jobs:
 
       - name: Test
         run: ctest --preset asan-ubsan
+
+  thread-sanitizer:
+    name: ThreadSanitizer (ubuntu-latest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libgtest-dev ninja-build
+
+      # Some ThreadSanitizer runtimes abort with "unexpected memory mapping"
+      # when the kernel uses more than 28 bits of mmap address randomization.
+      - name: Limit mmap address randomization
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: cmake --preset tsan -G Ninja
+
+      - name: Build
+        run: cmake --build --preset tsan
+
+      - name: Test
+        run: ctest --preset tsan

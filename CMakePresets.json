@@ -52,6 +52,19 @@
         "project_name_ENABLE_SANITIZERS": "ON",
         "project_name_WARNINGS_AS_ERRORS": "ON"
       }
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "description": "Configure a Debug build with ThreadSanitizer.",
+      "binaryDir": "${sourceDir}/build/tsan",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "project_name_ENABLE_THREAD_SANITIZER": "ON",
+        "project_name_WARNINGS_AS_ERRORS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -77,6 +90,12 @@
       "name": "asan-ubsan",
       "displayName": "ASan UBSan",
       "configurePreset": "asan-ubsan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "configurePreset": "tsan",
       "configuration": "Debug"
     }
   ],
@@ -112,6 +131,15 @@
       "name": "asan-ubsan",
       "displayName": "ASan UBSan",
       "configurePreset": "asan-ubsan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "configurePreset": "tsan",
       "configuration": "Debug",
       "output": {
         "outputOnFailure": true

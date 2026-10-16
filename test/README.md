@@ -63,3 +63,12 @@ cmake --preset quality
 cmake --build --preset quality
 ctest --preset quality
 ```
+
+Run the tests under sanitizers with the `asan-ubsan` preset, or with the `tsan`
+preset for ThreadSanitizer. The two cannot be combined:
+
+```sh
+cmake --preset tsan
+cmake --build --preset tsan
+ctest --preset tsan
+```

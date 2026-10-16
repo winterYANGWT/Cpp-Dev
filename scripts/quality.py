@@ -15,6 +15,8 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BUILD_DIR = ROOT_DIR / "build" / "quality"
+# Must match the configuration of the quality presets in CMakePresets.json.
+QUALITY_CONFIGURATION = "Debug"
 HEADER_SMOKE_DIR = BUILD_DIR / "header_smoke"
 PACKAGE_TEST_DIR = BUILD_DIR / "package"
 PACKAGE_INSTALL_DIR = PACKAGE_TEST_DIR / "install"
@@ -429,17 +431,50 @@ def has_cmake_cache_arg(args: list[str], name: str) -> bool:
     )
 
 
-def cmake_configure_command() -> list[str]:
+def cmake_configure_args() -> list[str]:
     extra_args = os.environ.get(CMAKE_CONFIGURE_ARGS_ENV, "").strip()
     configure_args = shlex.split(extra_args, posix=os.name != "nt") if extra_args else []
     sdkroot = macos_sdkroot()
     if sdkroot and not has_cmake_cache_arg(configure_args, "CMAKE_OSX_SYSROOT"):
         configure_args.append(f"-DCMAKE_OSX_SYSROOT={sdkroot}")
-    return ["cmake", "--preset", "quality", *configure_args]
+    return configure_args
 
 
-def configure_quality_build() -> None:
+def cmake_configure_command() -> list[str]:
+    return ["cmake", "--preset", "quality", *cmake_configure_args()]
+
+
+def cmake_cache_value(name: str) -> str | None:
+    cache = BUILD_DIR / "CMakeCache.txt"
+    if not cache.is_file():
+        return None
+
+    prefix = f"{name}:"
+    for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.startswith(prefix):
+            return line.partition("=")[2]
+    return None
+
+
+def missing_compile_database_reason() -> str:
+    generator = cmake_cache_value("CMAKE_GENERATOR") or "unknown"
+    return (
+        f"{describe_path(BUILD_DIR / 'compile_commands.json')} does not exist "
+        f"(CMake generator: {generator}). Visual Studio and Xcode generators do "
+        "not write it. Use a Ninja or Makefile generator, for example add "
+        f'"-G Ninja" to {CMAKE_CONFIGURE_ARGS_ENV}, and remove '
+        f"{describe_path(BUILD_DIR)} when switching generators."
+    )
+
+
+def configure_quality_build(require_compile_database: bool = False) -> None:
     run(cmake_configure_command())
+    if not (BUILD_DIR / "compile_commands.json").is_file():
+        reason = missing_compile_database_reason()
+        if require_compile_database:
+            raise SystemExit(f"clang-tidy needs a compile database. {reason}")
+        print(f"Warning: skipping the strict C++20 check. {reason}", flush=True)
+        return
     verify_standard_cpp()
 
 
@@ -448,31 +483,66 @@ def run_quality_tests() -> None:
     run(["ctest", "--preset", "quality"])
 
 
+def package_example_configure_command() -> list[str]:
+    # Configure the example like the library, so both use the same generator,
+    # compiler, and toolchain. The installed package goes first on the prefix
+    # path, followed by any prefixes passed for the library's dependencies.
+    prefix_paths = [str(PACKAGE_INSTALL_DIR)]
+    forwarded_args: list[str] = []
+    for arg in cmake_configure_args():
+        if has_cmake_cache_arg([arg], "CMAKE_PREFIX_PATH"):
+            prefix_path = arg.partition("=")[2]
+            if prefix_path:
+                prefix_paths.append(prefix_path)
+        else:
+            forwarded_args.append(arg)
+
+    return [
+        "cmake",
+        "--no-warn-unused-cli",
+        "-S",
+        str(PACKAGE_EXAMPLE_SOURCE_DIR),
+        "-B",
+        str(PACKAGE_EXAMPLE_BUILD_DIR),
+        *forwarded_args,
+        f"-DCMAKE_PREFIX_PATH={';'.join(prefix_paths)}",
+        f"-DCMAKE_BUILD_TYPE={QUALITY_CONFIGURATION}",
+    ]
+
+
 def run_package_consumer_test() -> None:
     if PACKAGE_TEST_DIR.exists():
         shutil.rmtree(PACKAGE_TEST_DIR)
     PACKAGE_TEST_DIR.mkdir(parents=True)
 
-    run(["cmake", "--install", str(BUILD_DIR), "--prefix", str(PACKAGE_INSTALL_DIR)])
     run(
         [
             "cmake",
-            "-S",
-            str(PACKAGE_EXAMPLE_SOURCE_DIR),
-            "-B",
-            str(PACKAGE_EXAMPLE_BUILD_DIR),
-            f"-DCMAKE_PREFIX_PATH={PACKAGE_INSTALL_DIR}",
-            "-DCMAKE_BUILD_TYPE=Debug",
+            "--install",
+            str(BUILD_DIR),
+            "--config",
+            QUALITY_CONFIGURATION,
+            "--prefix",
+            str(PACKAGE_INSTALL_DIR),
         ]
     )
-    run(["cmake", "--build", str(PACKAGE_EXAMPLE_BUILD_DIR), "--config", "Debug"])
+    run(package_example_configure_command())
+    run(
+        [
+            "cmake",
+            "--build",
+            str(PACKAGE_EXAMPLE_BUILD_DIR),
+            "--config",
+            QUALITY_CONFIGURATION,
+        ]
+    )
     run(
         [
             "ctest",
             "--test-dir",
             str(PACKAGE_EXAMPLE_BUILD_DIR),
             "--build-config",
-            "Debug",
+            QUALITY_CONFIGURATION,
             "--output-on-failure",
         ]
     )
@@ -521,7 +591,7 @@ def command_test(_: argparse.Namespace) -> None:
 
 
 def command_tidy(_: argparse.Namespace) -> None:
-    configure_quality_build()
+    configure_quality_build(require_compile_database=True)
     run_quality_tidy()
 
 
@@ -537,7 +607,7 @@ def command_check(_: argparse.Namespace) -> None:
             check=True,
         ),
     )
-    configure_quality_build()
+    configure_quality_build(require_compile_database=True)
     run_quality_tests()
     run_package_consumer_test()
     run_quality_tidy()

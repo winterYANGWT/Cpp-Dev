@@ -28,6 +28,8 @@ python scripts/rename_project.py
 python scripts/quality.py check
 ```
 
+On Windows, set the environment variables from [Required Local Tools](#required-local-tools) before running `quality.py`. Without `-G Ninja`, CMake uses the Visual Studio generator, which does not write the `compile_commands.json` that `clang-tidy` needs, so `quality.py check` stops after configuring.
+
 When no project name is provided, `rename_project.py` infers it from the repository directory name. GitHub repository names may use hyphens; inferred names convert hyphens to underscores and lowercase the result.
 
 You can also pass the project name explicitly:
@@ -41,10 +43,19 @@ python3 scripts/rename_project.py my_library
 
 After renaming, replace the placeholder header, source, test content, and README with the real library API, behavior, and project description. Keep `TEMPLATE_VERSION`; it records which template version the project started from. See [Template Version](#template-version).
 
+Also replace the template's entries in `CHANGELOG.md` with the project's own history, and review the `Template:` notes in `CONTRIBUTING.md`, `SECURITY.md`, and the issue forms under `.github/ISSUE_TEMPLATE/`.
+
 ## Documentation
 
 - [Release Branching Contract](docs/release-branching.md): branch roles,
   SemVer release flow, hotfix flow, and old-version support flow.
+- [Contributing](CONTRIBUTING.md): checks to run before submitting a change,
+  branch and commit conventions, and pull requests.
+- [Security Policy](SECURITY.md): supported versions and private vulnerability
+  reporting.
+- [Changelog](CHANGELOG.md): notable changes, in Keep a Changelog format.
+
+Issue forms and the pull request template live under `.github/`.
 
 ## Required Local Tools
 
@@ -75,6 +86,8 @@ $env:CXX = "cl"
 $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
 python scripts/quality.py check
 ```
+
+To build with clang-cl, which the LLVM package also installs, use `clang-cl` in place of `cl` in `CC`, `CXX`, and the compiler arguments.
 
 The template does not download GoogleTest for you. If CMake cannot find
 `GTest CONFIG`, install GoogleTest with your package manager or build it
@@ -134,6 +147,8 @@ Use standard include guards for public headers. Do not use non-standard pragma-b
 
 Every library should use CMake `3.21` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
 
+The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
+
 The root CMake project should define one main library target named `{project_name}` and an alias target named `{project_name}::{project_name}`. The alias target is the stable interface used by tests, examples, and downstream consumers.
 
 The template CMake files should prefer `${PROJECT_NAME}` for repeated project-dependent names, including targets, options, exported target files, config files, and install destinations. After creating a new library, changing the root `project(...)` name should update most generated CMake names automatically.
@@ -177,9 +192,16 @@ CPP_DEV_CMAKE_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py
 cmake --preset asan-ubsan
 cmake --build --preset asan-ubsan
 ctest --preset asan-ubsan
+cmake --preset tsan
+cmake --build --preset tsan
+ctest --preset tsan
 ```
 
 The `asan-ubsan` preset compiles with `-fno-sanitize-recover=all`, so any UndefinedBehaviorSanitizer report fails the test instead of only printing a diagnostic.
+
+The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `project_name_ENABLE_SANITIZERS` and `project_name_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping`, lower the kernel's mmap randomization with `sudo sysctl vm.mmap_rnd_bits=28`, as the CI job does.
+
+To check formatting before each commit, you can opt in to the [pre-commit hook](scripts/README.md#pre-commit-hook).
 
 ## Project Rename Workflow
 

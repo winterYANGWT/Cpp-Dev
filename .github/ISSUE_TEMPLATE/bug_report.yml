@@ -1,0 +1,51 @@
+# Template: projects created from CPP-DEV can adjust the labels and fields.
+name: Bug report
+description: Report a problem with the library, its build, or its CMake package.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not report security vulnerabilities
+        here; follow SECURITY.md instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag or commit you are using.
+      placeholder: v0.1.0 or a commit hash
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest code, commands, or CMake setup that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, compiler, CMake version and generator, and how you consume the library.
+      placeholder: |
+        OS: Ubuntu 26.04
+        Compiler: GCC 15.2
+        CMake: 4.2.3 with Ninja
+        Consumed through: find_package after cmake --install
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant build, test, or runtime output.
+      render: text

@@ -1,0 +1,25 @@
+# Template: projects created from CPP-DEV can adjust the labels and fields.
+name: Feature request
+description: Suggest a new feature or an improvement.
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem would this solve? Describe your use case.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work? For example, the API or the CMake interface you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other approaches or workarounds you have considered.

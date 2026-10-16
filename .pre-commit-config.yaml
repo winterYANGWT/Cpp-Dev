@@ -1,0 +1,13 @@
+# Optional pre-commit hook. Nothing runs until you opt in with
+# `pre-commit install`; see scripts/README.md.
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format-check
+        name: clang-format check
+        # `language: python` runs the hook with pre-commit's own Python, so the
+        # entry works whether the system calls it python or python3.
+        entry: python scripts/quality.py format --check
+        language: python
+        pass_filenames: false
+        types_or: [c++]

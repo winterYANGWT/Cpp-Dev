@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 DEFAULT_FROM = "project_name"
+SCRIPT_PATH = Path(__file__).resolve()
 NAME_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 SKIP_DIRS = {
     ".cache",
@@ -155,7 +156,7 @@ def main() -> int:
 
     validate_name(old_name, "Old project name")
 
-    root = Path(__file__).resolve().parents[1]
+    root = SCRIPT_PATH.parents[1]
     if args.new_project_name is None:
         new_name = infer_project_name(root)
         print(f"Inferred new project name: {new_name}")
@@ -169,7 +170,9 @@ def main() -> int:
 
     paths_to_rename = candidate_paths(root, old_name)
     renamed_paths = rename_paths(paths_to_rename, old_name, new_name, args.dry_run)
-    files = iter_files(root)
+    # Leave this script unchanged so that it keeps the template placeholder as
+    # its default and its own names stay readable.
+    files = [path for path in iter_files(root) if path.resolve() != SCRIPT_PATH]
     changed_files = replace_file_contents(files, old_name, new_name, args.dry_run)
 
     action = "Would update" if args.dry_run else "Updated"

@@ -27,6 +27,17 @@ starting from an empty Unreleased section.
   templates.
 - Contract tests in `scripts/` for template conventions, run by the
   `Contract tests` CI job.
+- Warning options for the `universe_answer` example, with a
+  `universe_answer_WARNINGS_AS_ERRORS` option.
+- `docs` preset and `project_name_BUILD_DOCS` option that generate API
+  documentation with Doxygen, with a CI job that fails on undocumented public
+  API.
+- Recommended tool versions in `docs/tool-versions.md`: clang-format and
+  clang-tidy 21.1, CMake 4.2, and Doxygen 1.15. They are recommendations, not
+  requirements. `scripts/tool_versions.py` compares the installed tools with
+  them.
+- `scripts/install_linux_tools.sh`, which sets up a Debian or Ubuntu image for
+  the quality gate.
 
 ### Changed
 
@@ -38,8 +49,18 @@ starting from an empty Unreleased section.
 - `quality.py tidy` and `quality.py check` stop with an explanation when the
   CMake generator does not write `compile_commands.json`; `test` and `package`
   print a warning instead.
+- `quality.py check` runs `clang-tidy` on the example as well, and the package
+  consumer check builds the example with warnings as errors.
+- `project_name_WARNINGS_AS_ERRORS` also turns Doxygen warnings into errors.
+- CI installs the recommended tool versions and fails when a job runs other
+  versions. Linux jobs run in a `debian:13-slim` container, and runner labels
+  are pinned instead of `-latest`.
+- The ThreadSanitizer CI job disables address space randomization with
+  `setarch` instead of changing the kernel setting.
 
 ### Fixed
 
 - UndefinedBehaviorSanitizer findings now fail the test run.
+- `quality.py` reports a tool missing from `PATH` with one error line and
+  exit status 1 instead of a Python traceback.
 - `CMakeUserPresets.json` is ignored by git.

@@ -38,9 +38,13 @@ starting from an empty Unreleased section.
   them.
 - `scripts/install_linux_tools.sh`, which sets up a Debian or Ubuntu image for
   the quality gate.
+- `docs/license.md`, which explains why the template recommends GPL-3.0, what
+  it means for users of a library, and how to replace it.
 
 ### Changed
 
+- GPL-3.0 is described as a recommendation, not a requirement: libraries
+  created from the template may replace the license.
 - Compiler options are chosen by the compiler frontend, so clang-cl gets
   MSVC-style options instead of GCC-style ones.
 - `quality.py package` installs and tests the configuration built by the

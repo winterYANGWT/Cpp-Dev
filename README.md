@@ -51,6 +51,8 @@ Also replace the template's entries in `CHANGELOG.md` with the project's own his
   SemVer release flow, hotfix flow, and old-version support flow.
 - [Tool Versions](docs/tool-versions.md): recommended versions of
   clang-format, clang-tidy, CMake, and Doxygen, and the environments CI uses.
+- [License](docs/license.md): why the template recommends GPL-3.0, what it
+  means for users of a library, and how to replace it.
 - [Contributing](CONTRIBUTING.md): checks to run before submitting a change,
   branch and commit conventions, and pull requests.
 - [Security Policy](SECURITY.md): supported versions and private vulnerability
@@ -268,7 +270,7 @@ The install tree should not expose `src/` paths or any source-tree-only include 
 
 ## License
 
-New libraries created from this template use GPL-3.0 by default. Treat GPL-3.0 as the settled template default, and do not reopen the license choice during routine template reuse unless the project owner explicitly requests a different license.
+New libraries created from this template use GPL-3.0 by default. The template recommends GPL-3.0 to encourage open source, but it is not a requirement: a library created from this template may replace it with another license. See [License](docs/license.md) for what GPL-3.0 means for users of a library, common alternatives, and how to replace the license.
 
 ## Template Principles
 

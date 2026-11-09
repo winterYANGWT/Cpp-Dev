@@ -87,6 +87,27 @@ Every CI job installs the recommended versions and runs
 GoogleTest comes from the platform's package manager: Debian, Homebrew, or
 vcpkg. Its version does not affect results.
 
+### Caches
+
+The Windows jobs spend most of their time setting up tools, and the slowest job
+decides how long CI takes. The `quality` job therefore caches that work with
+`actions/cache`. The caches live in the runner's temporary directory, never in
+the workspace or in `build/`:
+
+- pip downloads on macOS and Windows, keyed by `scripts/tool-requirements.txt`;
+- the GoogleTest package that vcpkg builds on Windows, through vcpkg's binary
+  cache, keyed by the runner image version;
+- on the clang-cl rows, the parts of LLVM 21.1.8 that clang-cl needs. Every
+  Windows runner image comes with LLVM 20, so on a cache miss the job installs
+  LLVM 21.1.8 with Chocolatey and copies those files into the cache directory.
+  Either way, the build uses the copy in the cache directory. A later step
+  checks that the linker and the other LLVM tools that CMake picked come from
+  the same directory as clang-cl, so that the preinstalled LLVM 20 on `PATH`
+  is never mixed in.
+
+The first run after a cache key changes fills the cache and takes about as
+long as a run without caches.
+
 ### Linux Image
 
 Linux jobs run in the `debian:13-slim` image instead of directly on the
@@ -136,7 +157,9 @@ the `tsan` preset locally.
 ## Change a Recommendation
 
 1. Update `scripts/tool-requirements.txt` and this page. For LLVM, also update
-   the Chocolatey LLVM version in `.github/workflows/ci.yml`; for Doxygen,
+   the Chocolatey LLVM version and the version in the LLVM cache key and
+   directory in `.github/workflows/ci.yml`, which
+   `scripts/ci_cache_contract_test.py` checks; for Doxygen,
    update the version and SHA-256 in `scripts/install_linux_tools.sh`. For
    CMake, the recommendation is also the minimum version: update
    `cmake_minimum_required` in `CMakeLists.txt` and

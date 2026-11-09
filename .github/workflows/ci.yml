@@ -114,18 +114,77 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      # runner context is available in step properties, but not in job-level
+      # env; the image version is a runner environment variable, so read it in
+      # a step and pass it to the cache key through GITHUB_OUTPUT.
+      - name: Read Windows image version
+        if: runner.os == 'Windows'
+        id: image-version
+        shell: pwsh
+        run: |
+          if (-not $env:ImageVersion) { throw "ImageVersion is not set" }
+          "version=$env:ImageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pip-cache
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/tool-requirements.txt') }}
+          restore-keys: pip-${{ runner.os }}-
+
+      - name: Cache vcpkg binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ steps.image-version.outputs.version }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
       # The runner image comes with another LLVM release. clang-cl uses the
-      # recommended LLVM release, like clang-format and clang-tidy.
-      - name: Install LLVM for clang-cl
+      # recommended LLVM release, like clang-format and clang-tidy. On a cache
+      # miss the installation is copied into the cached directory, so that
+      # both cases put the same files on PATH.
+      - name: Cache LLVM for clang-cl
         if: matrix.compiler == 'clang-cl'
+        id: llvm-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/llvm-21.1.8
+          key: llvm-21.1.8-${{ runner.os }}-clang-cl-v1
+
+      - name: Install LLVM for clang-cl
+        if: matrix.compiler == 'clang-cl' && steps.llvm-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           choco upgrade llvm --version=21.1.8 --allow-downgrade -y
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          $source = "C:\Program Files\LLVM"
+          $cache = Join-Path $env:RUNNER_TEMP "llvm-21.1.8"
+          $bin = Join-Path $cache "bin"
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          foreach ($name in "clang-cl.exe", "lld-link.exe", "llvm-lib.exe") {
+            $path = Join-Path $source "bin\$name"
+            if (-not (Test-Path $path)) { throw "The LLVM installation is missing bin\$name" }
+            Copy-Item $path $bin
+          }
+          foreach ($name in "llvm-ar.exe", "llvm-mt.exe", "llvm-rc.exe", "llvm-ml.exe") {
+            $path = Join-Path $source "bin\$name"
+            if (Test-Path $path) { Copy-Item $path $bin }
+          }
+          Get-ChildItem (Join-Path $source "bin") -Filter *.dll | Copy-Item -Destination $bin
+          New-Item -ItemType Directory -Force -Path (Join-Path $cache "lib") | Out-Null
+          Copy-Item (Join-Path $source "lib\clang") (Join-Path $cache "lib") -Recurse -Force
+
+      - name: Use LLVM for clang-cl
+        if: matrix.compiler == 'clang-cl'
+        shell: pwsh
+        run: |
+          "$env:RUNNER_TEMP\llvm-21.1.8\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Install macOS tools
         if: runner.os == 'macOS'
+        env:
+          PIP_CACHE_DIR: ${{ runner.temp }}/pip-cache
         run: |
           brew install googletest
           python3 -m venv "$RUNNER_TEMP/tools"
@@ -133,15 +192,26 @@ jobs:
           echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
 
-      - name: Install Windows tools
+      - name: Install Python tools
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          PIP_CACHE_DIR: ${{ runner.temp }}/pip-cache
         run: |
           python -m venv "$env:RUNNER_TEMP\tools"
           & "$env:RUNNER_TEMP\tools\Scripts\python.exe" -m pip install --disable-pip-version-check --quiet -r scripts/tool-requirements.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "$env:RUNNER_TEMP\tools\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Install GoogleTest
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ runner.temp }}/vcpkg-cache,readwrite
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\vcpkg-cache" | Out-Null
           vcpkg install gtest:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify tool versions
         run: python scripts/tool_versions.py --strict ${{ matrix.compiler == 'clang-cl' && '--tool clang-cl' || '' }}
@@ -161,6 +231,42 @@ jobs:
           $env:CXX = $compiler
           $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DCMAKE_C_COMPILER=$compiler -DCMAKE_CXX_COMPILER=$compiler -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
           python scripts/quality.py check
+
+      # The runner image ships another LLVM, and Visual Studio has its own
+      # tools. Fail if a tool from a directory that also contains clang-cl.exe
+      # differs from the directory of CMAKE_CXX_COMPILER: that would mix two
+      # LLVM installations.
+      - name: Check for mixed LLVM installations
+        if: matrix.compiler == 'clang-cl'
+        shell: pwsh
+        run: |
+          $cacheFile = "build/quality/CMakeCache.txt"
+          if (-not (Test-Path $cacheFile)) { throw "Missing $cacheFile" }
+          $values = @{}
+          foreach ($line in Get-Content $cacheFile) {
+            if ($line -match '^([A-Za-z0-9_]+):[A-Za-z]+=(.*)$') {
+              $values[$matches[1]] = $matches[2]
+            }
+          }
+          $names = "CMAKE_CXX_COMPILER", "CMAKE_LINKER", "CMAKE_AR", "CMAKE_MT", "CMAKE_RC_COMPILER"
+          foreach ($name in $names) { Write-Host "$name=$($values[$name])" }
+          $compiler = $values["CMAKE_CXX_COMPILER"]
+          if (-not $compiler -or $compiler -eq "NOTFOUND") {
+            throw "CMAKE_CXX_COMPILER is not set in $cacheFile"
+          }
+          function Get-ToolDirectory([string] $path) {
+            return (Split-Path -Parent $path).Replace("\", "/").ToLowerInvariant()
+          }
+          $compilerDirectory = Get-ToolDirectory $compiler
+          foreach ($name in $names) {
+            $tool = $values[$name]
+            if (-not $tool -or $tool -eq "NOTFOUND" -or $tool -like "*-NOTFOUND") { continue }
+            $directory = Get-ToolDirectory $tool
+            if ((Test-Path (Join-Path $directory "clang-cl.exe")) -and
+                $directory -ne $compilerDirectory) {
+              throw "Two LLVMs are mixed: $name is $tool, but CMAKE_CXX_COMPILER is $compiler"
+            }
+          }
 
   sanitizers:
     name: Sanitizers (debian-13)

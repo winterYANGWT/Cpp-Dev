@@ -43,6 +43,8 @@ starting from an empty Unreleased section.
 
 ### Changed
 
+- The Windows CI jobs cache pip downloads, the GoogleTest package that vcpkg
+  builds, and LLVM for clang-cl, to shorten the slowest jobs.
 - CMake 4.2 or newer is required, the same version that is recommended. The
   CMake files declared 3.21, but the build already needed 3.26 for
   `cmake -E copy -t`.

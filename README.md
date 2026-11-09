@@ -167,6 +167,8 @@ Use standard include guards for public headers. Do not use non-standard pragma-b
 
 Every library should use CMake `4.2` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
 
+C++20 module scanning is off: the root `CMakeLists.txt` and the example's `CMakeLists.txt` set `CMAKE_CXX_SCAN_FOR_MODULES` to `OFF` right after `project()`, before any target is created. The template does not use modules, and since CMake 3.28 (policy CMP0155), scanning is on by default for C++20 targets; with GCC it adds flags to `compile_commands.json` that `clang-tidy` cannot read. A project that adopts modules can turn scanning back on, but should then run `clang-tidy` against a Clang build.
+
 The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
 
 The root CMake project should define one main library target named `{project_name}` and an alias target named `{project_name}::{project_name}`. The alias target is the stable interface used by tests, examples, and downstream consumers.

@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 4.2)
 
 project(project_name VERSION 0.1.0 LANGUAGES CXX)
 
+# The template does not use C++20 modules. Module scanning would add GCC-only
+# flags to compile_commands.json, which clang-tidy rejects.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 include(cmake/project_nameOptions.cmake)
 include(cmake/project_nameCompiler.cmake)
 include(cmake/project_nameDocs.cmake)

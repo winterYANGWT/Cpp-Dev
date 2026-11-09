@@ -50,6 +50,16 @@ FEATURE_CMAKES: dict[str, tuple[int, int]] = {
     "-E copy -t": (3, 26),
     "TARGET_RUNTIME_DLLS": (3, 21),
 }
+# CMake 3.28 introduced CMP0155, which makes C++20 targets scan for modules.
+MODULE_SCANNING_POLICY_CMAKE = (3, 28)
+MODULE_SCANNING_OFF_RE = re.compile(
+    r"^[ \t]*set[ \t]*\([ \t]*CMAKE_CXX_SCAN_FOR_MODULES[ \t]+OFF[ \t]*\)"
+    r"[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+TARGET_DEFINITION_RE = re.compile(
+    r"\badd_(?:library|executable)\s*\(", re.IGNORECASE
+)
 
 
 def format_version(version: tuple[int, int]) -> str:
@@ -84,6 +94,15 @@ def required_cmake_version(text: str) -> tuple[int, int] | None:
         if feature in text:
             required = version if required is None else max(required, version)
     return required
+
+
+def disables_module_scanning_before_targets(text: str) -> bool:
+    """Return whether module scanning is turned off before any target exists."""
+    disabled = MODULE_SCANNING_OFF_RE.search(text)
+    if disabled is None:
+        return False
+    target = TARGET_DEFINITION_RE.search(text)
+    return target is None or disabled.start() < target.start()
 
 
 def preset_cmake_version(version: int) -> tuple[int, int]:
@@ -209,6 +228,35 @@ class CMakeMinimumContractTest(unittest.TestCase):
                 f"{format_version(declared)}.",
             )
 
+    def test_module_scanning_is_disabled_before_targets(self) -> None:
+        declared = declared_version(
+            (ROOT_DIR / "CMakeLists.txt").read_text(encoding="utf-8")
+        )
+        self.assertIsNotNone(
+            declared,
+            "CMakeLists.txt must contain exactly one "
+            f"cmake_minimum_required(VERSION {self.expected}) declaration.",
+        )
+        if declared < MODULE_SCANNING_POLICY_CMAKE:
+            self.skipTest(
+                f"CMake {format_version(declared)} predates CMP0155, so module "
+                "scanning is not enabled by the declared minimum."
+            )
+        for path in REQUIRED_CMAKELISTS:
+            self.assertTrue(
+                disables_module_scanning_before_targets(
+                    path.read_text(encoding="utf-8")
+                ),
+                f"{relative(path)} must contain "
+                "'set(CMAKE_CXX_SCAN_FOR_MODULES OFF)' before its first "
+                "add_library() or add_executable(). CMP0155, introduced in "
+                f"CMake {format_version(MODULE_SCANNING_POLICY_CMAKE)}, makes "
+                "C++20 targets scan for modules; the GCC-only scanning flags "
+                "in compile_commands.json are unknown arguments to clang-tidy. "
+                "The setting must come before any target is defined to affect "
+                "it.",
+            )
+
     def test_readme_cmake_contract_states_the_recommended_minimum(self) -> None:
         readme = README.read_text(encoding="utf-8")
         section = re.search(
@@ -277,6 +325,22 @@ class RequiredVersionFunctionsTest(unittest.TestCase):
         self.assertEqual(required_cmake_version(copy_t), (3, 26))
         self.assertIsNone(required_cmake_version(plain))
         self.assertEqual(required_cmake_version(both), (3, 26))
+
+    def test_module_scanning_switch_must_precede_targets(self) -> None:
+        switch = "set(CMAKE_CXX_SCAN_FOR_MODULES OFF)"
+        target = "add_library(example example.cc)"
+        self.assertTrue(
+            disables_module_scanning_before_targets(f"{switch}\n{target}")
+        )
+        self.assertFalse(disables_module_scanning_before_targets(target))
+        self.assertFalse(
+            disables_module_scanning_before_targets(f"{target}\n{switch}")
+        )
+        self.assertFalse(
+            disables_module_scanning_before_targets(
+                "set(CMAKE_CXX_SCAN_FOR_MODULES ON)\n" + target
+            )
+        )
 
     def test_preset_version_lookup(self) -> None:
         for version, expected in PRESET_VERSION_CMAKES.items():

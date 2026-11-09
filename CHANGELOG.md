@@ -46,6 +46,8 @@ starting from an empty Unreleased section.
 - CMake 4.2 or newer is required, the same version that is recommended. The
   CMake files declared 3.21, but the build already needed 3.26 for
   `cmake -E copy -t`.
+- C++20 module scanning is turned off. With CMake 4.2 policies it is on by
+  default, and with GCC it adds flags that `clang-tidy` cannot read.
 - GPL-3.0 is described as a recommendation, not a requirement: libraries
   created from the template may replace the license.
 - Compiler options are chosen by the compiler frontend, so clang-cl gets

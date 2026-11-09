@@ -1,0 +1,37 @@
+# Doxygen configuration for the public API in include/. CMake fills in the
+# variables when project_name_BUILD_DOCS is ON. Settings not listed here keep
+# Doxygen's defaults.
+
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+OUTPUT_DIRECTORY       = "@docs_output_dir@"
+
+INPUT                  = "@docs_input_dir@"
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hh *.hpp *.hxx
+STRIP_FROM_PATH        = "@docs_input_dir@"
+STRIP_FROM_INC_PATH    = "@docs_input_dir@"
+
+# Expand only the macros from the generated export header, so that exported
+# declarations are parsed as plain declarations.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = @docs_predefined@
+
+# Report undocumented public symbols and documentation errors. EXTRACT_ALL must
+# stay NO, because it turns off the warnings for undocumented symbols.
+EXTRACT_ALL            = NO
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+# Doxygen does not check the members of an undocumented namespace. Doxygen 1.13
+# and newer report the undocumented namespace itself with this setting; older
+# versions ignore it.
+HIDE_UNDOC_NAMESPACES  = NO
+WARN_AS_ERROR          = @docs_warn_as_error@
+QUIET                  = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO

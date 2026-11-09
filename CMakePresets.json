@@ -65,6 +65,18 @@
         "project_name_ENABLE_THREAD_SANITIZER": "ON",
         "project_name_WARNINGS_AS_ERRORS": "ON"
       }
+    },
+    {
+      "name": "docs",
+      "displayName": "Docs",
+      "description": "Generate the API documentation with Doxygen; Doxygen warnings are errors.",
+      "binaryDir": "${sourceDir}/build/docs",
+      "cacheVariables": {
+        "project_name_BUILD_DOCS": "ON",
+        "project_name_BUILD_TESTS": "OFF",
+        "project_name_INSTALL": "OFF",
+        "project_name_WARNINGS_AS_ERRORS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -97,6 +109,14 @@
       "displayName": "TSan",
       "configurePreset": "tsan",
       "configuration": "Debug"
+    },
+    {
+      "name": "docs",
+      "displayName": "Docs",
+      "configurePreset": "docs",
+      "targets": [
+        "project_name_docs"
+      ]
     }
   ],
   "testPresets": [

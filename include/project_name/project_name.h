@@ -3,6 +3,7 @@
 
 #include <project_name/export.h>
 
+/** @brief Template example API, to be replaced with the library's API. */
 namespace project_name {
 
 /** @brief Return the template example answer. */

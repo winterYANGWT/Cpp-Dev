@@ -13,6 +13,9 @@ organized.
 
 Install the tools listed in [Required Local Tools](README.md#required-local-tools):
 CMake, a C++20 compiler, `clang-format`, `clang-tidy`, and GoogleTest.
+[Tool Versions](docs/tool-versions.md) lists the versions that CI uses. They
+are recommendations, not requirements, but with other versions formatting and
+`clang-tidy` results can differ from CI.
 
 ## Checks
 
@@ -38,6 +41,15 @@ ctest --preset asan-ubsan
 cmake --preset tsan
 cmake --build --preset tsan
 ctest --preset tsan
+```
+
+For changes to public headers, also check that the API documentation builds
+without warnings. This needs Doxygen; see
+[API Documentation](README.md#api-documentation):
+
+```sh
+cmake --preset docs
+cmake --build --preset docs
 ```
 
 To check formatting automatically before each commit, you can install the

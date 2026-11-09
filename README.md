@@ -49,6 +49,8 @@ Also replace the template's entries in `CHANGELOG.md` with the project's own his
 
 - [Release Branching Contract](docs/release-branching.md): branch roles,
   SemVer release flow, hotfix flow, and old-version support flow.
+- [Tool Versions](docs/tool-versions.md): recommended versions of
+  clang-format, clang-tidy, CMake, and Doxygen, and the environments CI uses.
 - [Contributing](CONTRIBUTING.md): checks to run before submitting a change,
   branch and commit conventions, and pull requests.
 - [Security Policy](SECURITY.md): supported versions and private vulnerability
@@ -61,6 +63,12 @@ Issue forms and the pull request template live under `.github/`.
 
 The quality gate expects CMake, a C++20 compiler, `clang-format`, `clang-tidy`, and GoogleTest.
 
+This repository recommends clang-format and clang-tidy 21.1 and CMake 4.2, the versions that CI uses. These are recommendations, not requirements: other versions usually work, but formatting and `clang-tidy` results can differ from CI. See [Tool Versions](docs/tool-versions.md) for the reasons and for installing the recommended versions from PyPI on any platform. To compare your tools with the recommendations, run:
+
+```sh
+python3 scripts/tool_versions.py
+```
+
 Ubuntu or Debian:
 
 ```sh
@@ -68,18 +76,21 @@ sudo apt-get update
 sudo apt-get install -y cmake clang-format clang-tidy libgtest-dev
 ```
 
+On Ubuntu 26.04 these packages have the recommended versions. Older releases provide older versions; install clang-format, clang-tidy, and CMake from PyPI instead if you want to match CI.
+
 macOS with Homebrew:
 
 ```sh
-brew install cmake googletest llvm
-export PATH="$(brew --prefix llvm)/bin:$PATH"
+brew install cmake googletest llvm@21
+export PATH="$(brew --prefix llvm@21)/bin:$PATH"
 export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 ```
 
 Windows with MSVC Build Tools, Chocolatey, and vcpkg:
 
 ```powershell
-choco install llvm ninja -y
+choco install llvm --version=21.1.8 -y
+choco install ninja -y
 vcpkg install gtest:x64-windows
 $env:CC = "cl"
 $env:CXX = "cl"
@@ -93,6 +104,9 @@ The template does not download GoogleTest for you. If CMake cannot find
 `GTest CONFIG`, install GoogleTest with your package manager or build it
 yourself, then pass the package location through `CMAKE_PREFIX_PATH` or
 `GTest_DIR`.
+
+Doxygen is optional. Only the `docs` preset needs it; see
+[API Documentation](#api-documentation).
 
 ## Naming
 
@@ -141,6 +155,8 @@ This is not a strict, unmodified Google C++ style profile. The template accepts 
 
 Use Doxygen comments for public API documentation. Prefer `/** ... */` block comments placed on their own line immediately before the symbol they document. Avoid trailing Doxygen forms after declarations or statements.
 
+Document each public namespace as well as its members, because Doxygen does not check the members of an undocumented namespace. Wrap implementation details in public headers, such as an `internal` namespace, in `/** @cond INTERNAL */` and `/** @endcond */` to leave them out of the documentation and its checks.
+
 Use standard include guards for public headers. Do not use non-standard pragma-based header guards. Guard names should follow the installed include path, be uppercase, and end in `_H_`, such as `PROJECT_NAME_PROJECT_NAME_H_` for `include/project_name/project_name.h`.
 
 ## CMake Contract
@@ -181,7 +197,7 @@ The `scripts/` directory provides the standard local quality gate:
 python3 scripts/quality.py check
 ```
 
-The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units plus generated header smoke translation units. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
+The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
 
 Use `python` instead of `python3` on platforms where that is the Python 3 executable.
 
@@ -199,9 +215,24 @@ ctest --preset tsan
 
 The `asan-ubsan` preset compiles with `-fno-sanitize-recover=all`, so any UndefinedBehaviorSanitizer report fails the test instead of only printing a diagnostic.
 
-The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `project_name_ENABLE_SANITIZERS` and `project_name_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping`, lower the kernel's mmap randomization with `sudo sysctl vm.mmap_rnd_bits=28`, as the CI job does.
+The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `project_name_ENABLE_SANITIZERS` and `project_name_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping` or `incompatible memory layout`, the kernel's mmap randomization breaks its memory layout. Run the build and the tests under `setarch "$(uname -m)" -R`, which turns randomization off for them and does not need root, as the CI job does. The build needs it too, because it runs the test executable to list the tests. In a Docker container, `setarch` also needs `--security-opt seccomp=unconfined`. Lowering the randomization for the whole system with `sudo sysctl vm.mmap_rnd_bits=28` works as well.
 
 To check formatting before each commit, you can opt in to the [pre-commit hook](scripts/README.md#pre-commit-hook).
+
+## API Documentation
+
+The `docs` preset generates HTML documentation for the public headers in `include/` with Doxygen:
+
+```sh
+cmake --preset docs
+cmake --build --preset docs
+```
+
+The output is written to `build/docs/doxygen/html/index.html`. The preset treats Doxygen warnings as errors, so the build fails when a public namespace, class, or member is undocumented, when a function documents some of its parameters but not all, or when a comment names a parameter that does not exist. Only this preset looks for Doxygen; other builds do not need it.
+
+Use Doxygen 1.13 or newer. Older versions do not report undocumented namespaces and therefore skip the checks for their members; CMake prints a warning when it finds one. CI generates the documentation on Ubuntu 26.04, which provides Doxygen 1.15.
+
+To generate the documentation from another build tree, configure it with `-Dproject_name_BUILD_DOCS=ON` and build the `project_name_docs` target. Doxygen warnings are errors there only when `project_name_WARNINGS_AS_ERRORS` is also ON.
 
 ## Project Rename Workflow
 

@@ -4,6 +4,7 @@ project(project_name VERSION 0.1.0 LANGUAGES CXX)
 
 include(cmake/project_nameOptions.cmake)
 include(cmake/project_nameCompiler.cmake)
+include(cmake/project_nameDocs.cmake)
 include(cmake/project_nameInstall.cmake)
 include(GenerateExportHeader)
 
@@ -47,4 +48,8 @@ endif()
 
 if(${PROJECT_NAME}_INSTALL)
   project_name_install_package(${PROJECT_NAME})
+endif()
+
+if(${PROJECT_NAME}_BUILD_DOCS)
+  project_name_add_docs_target()
 endif()

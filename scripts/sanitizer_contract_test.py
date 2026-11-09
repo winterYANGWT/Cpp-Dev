@@ -70,6 +70,22 @@ class SanitizerContractTest(unittest.TestCase):
             with self.subTest(preset=preset):
                 self.assertIn(f"ctest --preset {preset}", workflow)
 
+    def test_ci_disables_address_randomization_for_thread_sanitizer(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        match = re.search(
+            r"^  thread-sanitizer:\n(.*?)(?=^  \S|\Z)", workflow, re.M | re.S
+        )
+        self.assertIsNotNone(match)
+        job = match.group(1)
+
+        # The build runs the test executable to list its tests, so it needs
+        # the same memory layout as the tests.
+        for command in ("cmake --build --preset tsan", "ctest --preset tsan"):
+            with self.subTest(command=command):
+                self.assertIn(f'setarch "$(uname -m)" -R {command}', job)
+        # Docker's default seccomp profile does not let setarch disable it.
+        self.assertIn("options: --security-opt seccomp=unconfined", job)
+
 
 if __name__ == "__main__":
     unittest.main()

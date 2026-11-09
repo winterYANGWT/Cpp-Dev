@@ -11,20 +11,77 @@ on:
       - "release/**"
   workflow_dispatch:
 
+# Tool versions follow docs/tool-versions.md: scripts/tool-requirements.txt
+# lists the PyPI tools, and every job checks them with tool_versions.py
+# --strict. Runner labels are pinned, so that a new runner image does not
+# change compilers or preinstalled tools unnoticed.
+#
+# Linux jobs run in the debian:13-slim image. scripts/install_linux_tools.sh
+# installs the same tools on any Debian or Ubuntu image, so the setup can be
+# reproduced locally with Docker. The image has no git; each Linux job installs
+# it before the checkout, so that the checkout is a git work tree.
+
 jobs:
   contracts:
-    name: Contract tests
-    runs-on: ubuntu-latest
+    name: Contract tests (debian-13)
+    runs-on: ubuntu-24.04
+    container: debian:13-slim
 
     steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sh scripts/install_linux_tools.sh "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
 
       - name: Run contract tests
         run: |
           for test in scripts/*_test.py; do
             python3 "$test"
           done
+
+  quality-linux:
+    name: Quality (debian-13, shared=${{ matrix.shared }})
+    runs-on: ubuntu-24.04
+    container: debian:13-slim
+    strategy:
+      fail-fast: false
+      matrix:
+        shared:
+          - OFF
+          - ON
+
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sh scripts/install_linux_tools.sh "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
+
+      - name: Run quality gate
+        env:
+          CPP_DEV_CMAKE_CONFIGURE_ARGS: -G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }}
+        run: python3 scripts/quality.py check
 
   quality:
     name: Quality (${{ matrix.os }}, shared=${{ matrix.shared }}${{ matrix.compiler != 'default' && format(', {0}', matrix.compiler) || '' }})
@@ -33,20 +90,19 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+          - macos-26
+          - windows-2025
         shared:
           - OFF
           - ON
-        # The runner's default compiler; cl on Windows.
+        # The runner's default compiler: AppleClang on macOS, cl on Windows.
         compiler:
           - default
         include:
-          - os: windows-latest
+          - os: windows-2025
             shared: OFF
             compiler: clang-cl
-          - os: windows-latest
+          - os: windows-2025
             shared: ON
             compiler: clang-cl
 
@@ -58,27 +114,37 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Linux tools
-        if: runner.os == 'Linux'
+      # The runner image comes with another LLVM release. clang-cl uses the
+      # recommended LLVM release, like clang-format and clang-tidy.
+      - name: Install LLVM for clang-cl
+        if: matrix.compiler == 'clang-cl'
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format clang-tidy cmake libgtest-dev ninja-build
+          choco upgrade llvm --version=21.1.8 --allow-downgrade -y
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Install macOS tools
         if: runner.os == 'macOS'
         run: |
-          brew update
-          brew install cmake googletest llvm ninja
-          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          brew install googletest
+          python3 -m venv "$RUNNER_TEMP/tools"
+          "$RUNNER_TEMP/tools/bin/python" -m pip install --disable-pip-version-check --quiet -r scripts/tool-requirements.txt
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
 
       - name: Install Windows tools
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install llvm ninja -y
-          "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          python -m venv "$env:RUNNER_TEMP\tools"
+          & "$env:RUNNER_TEMP\tools\Scripts\python.exe" -m pip install --disable-pip-version-check --quiet -r scripts/tool-requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "$env:RUNNER_TEMP\tools\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
           vcpkg install gtest:x64-windows
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict ${{ matrix.compiler == 'clang-cl' && '--tool clang-cl' || '' }}
 
       - name: Run quality gate
         if: runner.os != 'Windows'
@@ -97,17 +163,26 @@ jobs:
           python scripts/quality.py check
 
   sanitizers:
-    name: Sanitizers (ubuntu-latest)
-    runs-on: ubuntu-latest
+    name: Sanitizers (debian-13)
+    runs-on: ubuntu-24.04
+    container: debian:13-slim
 
     steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake libgtest-dev ninja-build
+          sh scripts/install_linux_tools.sh "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
 
       - name: Configure
         run: cmake --preset asan-ubsan -G Ninja
@@ -119,28 +194,73 @@ jobs:
         run: ctest --preset asan-ubsan
 
   thread-sanitizer:
-    name: ThreadSanitizer (ubuntu-latest)
-    runs-on: ubuntu-latest
+    name: ThreadSanitizer (debian-13)
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:13-slim
+      # Docker's default seccomp profile does not let setarch disable address
+      # space randomization.
+      options: --security-opt seccomp=unconfined
 
     steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake libgtest-dev ninja-build
+          sh scripts/install_linux_tools.sh "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
 
-      # Some ThreadSanitizer runtimes abort with "unexpected memory mapping"
-      # when the kernel uses more than 28 bits of mmap address randomization.
-      - name: Limit mmap address randomization
-        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
 
       - name: Configure
         run: cmake --preset tsan -G Ninja
 
+      # ThreadSanitizer aborts when the kernel's mmap randomization breaks its
+      # memory layout, as on the runner. setarch -R turns randomization off for
+      # the build, which runs the test executable to list its tests, and for
+      # the tests.
       - name: Build
-        run: cmake --build --preset tsan
+        run: setarch "$(uname -m)" -R cmake --build --preset tsan
 
       - name: Test
-        run: ctest --preset tsan
+        run: setarch "$(uname -m)" -R ctest --preset tsan
+
+  docs:
+    name: Docs (debian-13)
+    runs-on: ubuntu-24.04
+    container: debian:13-slim
+
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Debian 13 provides Doxygen 1.9.8, which does not report undocumented
+      # namespaces; --doxygen installs the recommended release instead.
+      - name: Install tools
+        run: |
+          sh scripts/install_linux_tools.sh --doxygen "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
+
+      - name: Run docs contract test
+        run: python3 scripts/docs_contract_test.py
+
+      - name: Configure
+        run: cmake --preset docs -G Ninja
+
+      - name: Generate documentation
+        run: cmake --build --preset docs

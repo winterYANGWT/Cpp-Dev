@@ -11,13 +11,17 @@ that CI accepts, and `clang-tidy` can report findings that CI does not, or miss
 findings that CI reports. Use the recommended versions when you want local
 results to match CI.
 
+**The exception is the CMake minimum.** The CMake files require CMake 4.2 or
+newer, the same version that is recommended, so CI always builds with the
+minimum version. Newer CMake releases work.
+
 ## Recommended Versions
 
 | Tool | Recommended | Notes |
 | --- | --- | --- |
 | clang-format | 21.1 | Formatting output differs between minor releases. |
 | clang-tidy | 21.1 | New releases add and extend checks, and `.clang-tidy` treats every warning as an error. |
-| CMake | 4.2 | The version that CI builds with. The CMake files declare the minimum version they support in `cmake_minimum_required`. |
+| CMake | 4.2 | The version that CI builds with, and also the minimum: the CMake files declare `cmake_minimum_required(VERSION 4.2)`. Newer versions work. |
 | Doxygen | 1.15 | Only needed for the `docs` preset. Use 1.13 or newer: older versions do not report undocumented namespaces. |
 | Ninja | any | The version does not affect results. |
 
@@ -64,6 +68,10 @@ Platform packages also provide the recommended versions:
 - Windows: `choco install llvm --version=21.1.8`, which also installs clang-cl.
 - Doxygen: the [release binaries](https://github.com/doxygen/doxygen/releases)
   run on any platform.
+
+Older distributions ship a CMake below the 4.2 minimum, for example Ubuntu
+24.04 (3.28) and Debian 13 (3.31), and the CMake that comes with Visual Studio
+can be older too. Install CMake from PyPI on those systems.
 
 ## What CI Uses
 
@@ -129,7 +137,12 @@ the `tsan` preset locally.
 
 1. Update `scripts/tool-requirements.txt` and this page. For LLVM, also update
    the Chocolatey LLVM version in `.github/workflows/ci.yml`; for Doxygen,
-   update the version and SHA-256 in `scripts/install_linux_tools.sh`.
+   update the version and SHA-256 in `scripts/install_linux_tools.sh`. For
+   CMake, the recommendation is also the minimum version: update
+   `cmake_minimum_required` in `CMakeLists.txt` and
+   `examples/universe_answer/CMakeLists.txt`, `cmakeMinimumRequired` in
+   `CMakePresets.json`, and the CMake Contract in `README.md`.
+   `scripts/cmake_minimum_contract_test.py` checks that they agree.
 2. Run `python3 scripts/quality.py check` with the new versions and fix new
    formatting differences and clang-tidy findings in the same change.
 3. Record the change in `CHANGELOG.md`.

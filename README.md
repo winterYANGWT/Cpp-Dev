@@ -65,7 +65,7 @@ Issue forms and the pull request template live under `.github/`.
 
 The quality gate expects CMake, a C++20 compiler, `clang-format`, `clang-tidy`, and GoogleTest.
 
-This repository recommends clang-format and clang-tidy 21.1 and CMake 4.2, the versions that CI uses. These are recommendations, not requirements: other versions usually work, but formatting and `clang-tidy` results can differ from CI. See [Tool Versions](docs/tool-versions.md) for the reasons and for installing the recommended versions from PyPI on any platform. To compare your tools with the recommendations, run:
+CMake 4.2 or newer is required: the CMake files declare it as their minimum version. This repository recommends clang-format and clang-tidy 21.1 and CMake 4.2, the versions that CI uses. Apart from the CMake minimum, these are recommendations, not requirements: other versions usually work, but formatting and `clang-tidy` results can differ from CI. See [Tool Versions](docs/tool-versions.md) for the reasons and for installing the recommended versions from PyPI on any platform. To compare your tools with the recommendations, run:
 
 ```sh
 python3 scripts/tool_versions.py
@@ -78,7 +78,7 @@ sudo apt-get update
 sudo apt-get install -y cmake clang-format clang-tidy libgtest-dev
 ```
 
-On Ubuntu 26.04 these packages have the recommended versions. Older releases provide older versions; install clang-format, clang-tidy, and CMake from PyPI instead if you want to match CI.
+On Ubuntu 26.04 these packages have the recommended versions. Older releases, such as Ubuntu 24.04 and Debian 13, provide a CMake older than 4.2, which is too old for the build: install CMake from PyPI instead, as described in [Tool Versions](docs/tool-versions.md), and clang-format and clang-tidy as well if you want to match CI.
 
 macOS with Homebrew:
 
@@ -88,11 +88,13 @@ export PATH="$(brew --prefix llvm@21)/bin:$PATH"
 export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 ```
 
-Windows with MSVC Build Tools, Chocolatey, and vcpkg:
+Windows with MSVC Build Tools, Python, Chocolatey, and vcpkg. The CMake that comes with Visual Studio can be older than 4.2, so install CMake, Ninja, clang-format, and clang-tidy from PyPI, as CI does:
 
 ```powershell
+python -m venv $HOME\.venvs\cpp-dev-tools
+& $HOME\.venvs\cpp-dev-tools\Scripts\pip install -r scripts/tool-requirements.txt
+$env:PATH = "$HOME\.venvs\cpp-dev-tools\Scripts;$env:PATH"
 choco install llvm --version=21.1.8 -y
-choco install ninja -y
 vcpkg install gtest:x64-windows
 $env:CC = "cl"
 $env:CXX = "cl"
@@ -100,7 +102,7 @@ $env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_
 python scripts/quality.py check
 ```
 
-To build with clang-cl, which the LLVM package also installs, use `clang-cl` in place of `cl` in `CC`, `CXX`, and the compiler arguments.
+The LLVM package provides clang-cl. To build with clang-cl, use `clang-cl` in place of `cl` in `CC`, `CXX`, and the compiler arguments.
 
 The template does not download GoogleTest for you. If CMake cannot find
 `GTest CONFIG`, install GoogleTest with your package manager or build it
@@ -163,7 +165,7 @@ Use standard include guards for public headers. Do not use non-standard pragma-b
 
 ## CMake Contract
 
-Every library should use CMake `3.21` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
+Every library should use CMake `4.2` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
 
 The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
 

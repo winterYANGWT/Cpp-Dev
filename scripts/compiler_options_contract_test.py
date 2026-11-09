@@ -14,6 +14,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 OPTIONS_MODULE = ROOT_DIR / "cmake" / "project_nameOptions.cmake"
 COMPILER_MODULE = ROOT_DIR / "cmake" / "project_nameCompiler.cmake"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
+EXAMPLE_LISTS = ROOT_DIR / "examples" / "universe_answer" / "CMakeLists.txt"
 CONFIGURE_FUNCTIONS = (
     "project_name_configure_cxx_target",
     "project_name_configure_cxx_interface_target",
@@ -59,7 +60,9 @@ MSVC_STYLE_COMPILERS = {
 }
 
 # Target commands are not available in CMake script mode, so the probe defines
-# stand-ins that record each call as one line of PROBE_OUTPUT.
+# stand-ins that record each call as one line of PROBE_OUTPUT. With
+# PROBE_EXAMPLE_LISTS set, it runs the example's CMakeLists.txt instead of a
+# configure function.
 PROBE_SCRIPT = r"""
 function(record_call command)
   string(JOIN " " args ${ARGN})
@@ -82,12 +85,23 @@ function(target_link_options)
   record_call(target_link_options ${ARGN})
 endfunction()
 
+# Other commands that the example calls; the probe does not check them.
+foreach(command IN ITEMS
+    project find_package add_executable target_link_libraries
+    add_custom_command enable_testing add_test set_tests_properties)
+  cmake_language(EVAL CODE "function(${command})\nendfunction()")
+endforeach()
+
 file(WRITE "${PROBE_OUTPUT}" "")
-set(PROJECT_NAME project_name)
-set(PROJECT_IS_TOP_LEVEL ON)
-include("${OPTIONS_MODULE}")
-include("${COMPILER_MODULE}")
-cmake_language(CALL "${PROBE_FUNCTION}" probe_target)
+if(DEFINED PROBE_EXAMPLE_LISTS)
+  include("${PROBE_EXAMPLE_LISTS}")
+else()
+  set(PROJECT_NAME project_name)
+  set(PROJECT_IS_TOP_LEVEL ON)
+  include("${OPTIONS_MODULE}")
+  include("${COMPILER_MODULE}")
+  cmake_language(CALL "${PROBE_FUNCTION}" probe_target)
+endif()
 """
 
 
@@ -128,17 +142,32 @@ class CompilerOptionsContractTest(unittest.TestCase):
         compiler: dict[str, str],
         **options: str,
     ) -> ProbeResult:
+        return self.run_probe(
+            {
+                "PROBE_FUNCTION": function,
+                "OPTIONS_MODULE": OPTIONS_MODULE.as_posix(),
+                "COMPILER_MODULE": COMPILER_MODULE.as_posix(),
+                "project_name_WARNINGS_AS_ERRORS": "ON",
+                **compiler,
+                **{f"project_name_{name}": value for name, value in options.items()},
+            }
+        )
+
+    def probe_example(
+        self, compiler: dict[str, str], warnings_as_errors: str
+    ) -> ProbeResult:
+        return self.run_probe(
+            {
+                "PROBE_EXAMPLE_LISTS": EXAMPLE_LISTS.as_posix(),
+                "universe_answer_WARNINGS_AS_ERRORS": warnings_as_errors,
+                **compiler,
+            }
+        )
+
+    def run_probe(self, variables: dict[str, str]) -> ProbeResult:
         output_file = self.temp_dir / "calls.txt"
         output_file.unlink(missing_ok=True)
-        variables = {
-            "PROBE_OUTPUT": output_file.as_posix(),
-            "PROBE_FUNCTION": function,
-            "OPTIONS_MODULE": OPTIONS_MODULE.as_posix(),
-            "COMPILER_MODULE": COMPILER_MODULE.as_posix(),
-            "project_name_WARNINGS_AS_ERRORS": "ON",
-            **compiler,
-            **{f"project_name_{name}": value for name, value in options.items()},
-        }
+        variables = {"PROBE_OUTPUT": output_file.as_posix(), **variables}
         result = subprocess.run(
             [
                 "cmake",
@@ -242,16 +271,36 @@ class CompilerOptionsContractTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("cannot both be ON", result.stderr)
 
+    def test_example_gets_the_library_warning_options(self) -> None:
+        # The example cannot use the library's CMake modules, so it repeats
+        # their warning options for each compiler.
+        compilers = {**GNU_STYLE_COMPILERS, **MSVC_STYLE_COMPILERS}
+        for compiler_name, compiler in compilers.items():
+            for warnings_as_errors in ("ON", "OFF"):
+                with self.subTest(
+                    compiler=compiler_name, warnings_as_errors=warnings_as_errors
+                ):
+                    library = self.probe(
+                        CONFIGURE_FUNCTIONS[0],
+                        compiler,
+                        WARNINGS_AS_ERRORS=warnings_as_errors,
+                    )
+                    example = self.probe_example(compiler, warnings_as_errors)
+
+                    self.assertEqual(example.returncode, 0, example.stderr)
+                    self.assertTrue(example.compile_options)
+                    self.assertEqual(example.compile_options, library.compile_options)
+
     def test_windows_ci_builds_with_clang_cl(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertRegex(
             workflow,
-            r"- os: windows-latest\s+shared: OFF\s+compiler: clang-cl",
+            r"- os: windows-\S+\s+shared: OFF\s+compiler: clang-cl",
         )
         self.assertRegex(
             workflow,
-            r"- os: windows-latest\s+shared: ON\s+compiler: clang-cl",
+            r"- os: windows-\S+\s+shared: ON\s+compiler: clang-cl",
         )
 
 

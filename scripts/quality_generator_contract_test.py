@@ -114,6 +114,91 @@ class QualityGeneratorContractTest(unittest.TestCase):
             [f"-DCMAKE_PREFIX_PATH={quality.PACKAGE_INSTALL_DIR};/deps"],
         )
 
+    def test_example_configure_exports_compile_commands_with_warnings_as_errors(
+        self,
+    ) -> None:
+        os.environ[quality.CMAKE_CONFIGURE_ARGS_ENV] = (
+            "-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF "
+            f"-D{quality.PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS}=OFF"
+        )
+        example = quality.package_example_configure_command()
+
+        # The last -D for a variable wins, so these must follow the forwarded
+        # arguments.
+        for name in (
+            "CMAKE_EXPORT_COMPILE_COMMANDS",
+            quality.PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS,
+        ):
+            with self.subTest(name=name):
+                values = [arg for arg in example if arg.startswith(f"-D{name}=")]
+                self.assertEqual(values[-1], f"-D{name}=ON")
+        self.assertIn(
+            f"option({quality.PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS} ",
+            (quality.PACKAGE_EXAMPLE_SOURCE_DIR / "CMakeLists.txt").read_text(
+                encoding="utf-8"
+            ),
+        )
+
+    def test_check_runs_clang_tidy_on_the_package_example(self) -> None:
+        steps: list[str] = []
+        step_names = (
+            "command_format",
+            "configure_quality_build",
+            "run_quality_tests",
+            "run_package_consumer_test",
+            "run_quality_tidy",
+            "run_package_example_tidy",
+        )
+        with contextlib.ExitStack() as stack:
+            for name in step_names:
+                stack.enter_context(
+                    mock.patch.object(
+                        quality,
+                        name,
+                        lambda *_, name=name, **__: steps.append(name),
+                    )
+                )
+            quality.command_check(argparse.Namespace())
+
+        # clang-tidy reads the example's compile database, which the package
+        # consumer check writes.
+        self.assertEqual(steps, list(step_names))
+
+    def test_example_tidy_uses_the_example_compile_database(self) -> None:
+        main_file = quality.PACKAGE_EXAMPLE_SOURCE_DIR / "src" / "main.cc"
+        quality.PACKAGE_EXAMPLE_BUILD_DIR.mkdir(parents=True)
+        (quality.PACKAGE_EXAMPLE_BUILD_DIR / "compile_commands.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "directory": str(quality.PACKAGE_EXAMPLE_BUILD_DIR),
+                        "command": f"c++ -std=c++20 -c {main_file}",
+                        "file": str(main_file),
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        tidy_commands: list[list[str]] = []
+
+        with mock.patch.object(quality, "run_clang_tidy", tidy_commands.append):
+            with contextlib.redirect_stdout(io.StringIO()):
+                quality.run_package_example_tidy()
+
+        self.assertEqual(len(tidy_commands), 1)
+        command = tidy_commands[0]
+        self.assertEqual(
+            option_value(command, "-p"), str(quality.PACKAGE_EXAMPLE_BUILD_DIR)
+        )
+        self.assertIn(str(main_file.relative_to(ROOT_DIR)), command)
+
+    def test_example_tidy_fails_without_example_compile_database(self) -> None:
+        with mock.patch.object(quality, "run_clang_tidy") as run_clang_tidy:
+            with self.assertRaises(SystemExit):
+                quality.run_package_example_tidy()
+
+        run_clang_tidy.assert_not_called()
+
     def test_test_and_package_warn_without_compile_database(self) -> None:
         self.write_cmake_cache(VISUAL_STUDIO_GENERATOR)
 

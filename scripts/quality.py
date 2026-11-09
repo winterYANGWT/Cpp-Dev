@@ -22,6 +22,7 @@ PACKAGE_TEST_DIR = BUILD_DIR / "package"
 PACKAGE_INSTALL_DIR = PACKAGE_TEST_DIR / "install"
 PACKAGE_EXAMPLE_SOURCE_DIR = ROOT_DIR / "examples" / "universe_answer"
 PACKAGE_EXAMPLE_BUILD_DIR = PACKAGE_TEST_DIR / "universe_answer"
+PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS = "universe_answer_WARNINGS_AS_ERRORS"
 CXX_HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx")
 CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
@@ -82,9 +83,18 @@ def command_environment() -> dict[str, str]:
     return env
 
 
+class ToolNotFoundError(Exception):
+    def __init__(self, tool: str) -> None:
+        super().__init__(tool)
+        self.tool = tool
+
+
 def run(command: list[str]) -> None:
     print("+ " + " ".join(command), flush=True)
-    subprocess.run(command, cwd=ROOT_DIR, env=command_environment(), check=True)
+    try:
+        subprocess.run(command, cwd=ROOT_DIR, env=command_environment(), check=True)
+    except FileNotFoundError as error:
+        raise ToolNotFoundError(command[0]) from error
 
 
 def is_clang_tidy_noise(line: str) -> bool:
@@ -106,15 +116,18 @@ def is_clang_tidy_noise(line: str) -> bool:
 
 def run_clang_tidy(command: list[str]) -> None:
     print("+ " + " ".join(command), flush=True)
-    result = subprocess.run(
-        command,
-        cwd=ROOT_DIR,
-        env=command_environment(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=ROOT_DIR,
+            env=command_environment(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as error:
+        raise ToolNotFoundError(command[0]) from error
     for line in result.stdout.splitlines():
         if not is_clang_tidy_noise(line):
             print(line)
@@ -140,8 +153,10 @@ def collect_project_files(suffixes: tuple[str, ...]) -> list[str]:
     ]
 
 
-def compile_database_entries() -> list[dict[str, object]] | None:
-    database = BUILD_DIR / "compile_commands.json"
+def compile_database_entries(
+    build_dir: Path | None = None,
+) -> list[dict[str, object]] | None:
+    database = (build_dir or BUILD_DIR) / "compile_commands.json"
     if not database.is_file():
         return None
 
@@ -507,6 +522,10 @@ def package_example_configure_command() -> list[str]:
         *forwarded_args,
         f"-DCMAKE_PREFIX_PATH={';'.join(prefix_paths)}",
         f"-DCMAKE_BUILD_TYPE={QUALITY_CONFIGURATION}",
+        # Hold the example to the library's standard: clang-tidy reads this
+        # compile database after the package consumer check.
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        f"-D{PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS}=ON",
     ]
 
 
@@ -585,6 +604,36 @@ def run_quality_tidy() -> None:
         )
 
 
+def run_package_example_tidy() -> None:
+    entries = compile_database_entries(PACKAGE_EXAMPLE_BUILD_DIR)
+    source_files = compile_database_source_files(entries)
+    if source_files is None:
+        database = PACKAGE_EXAMPLE_BUILD_DIR / "compile_commands.json"
+        raise SystemExit(
+            "clang-tidy needs a compile database for the package example. "
+            f"{describe_path(database)} does not exist."
+        )
+    if not source_files:
+        print("No C++ source files found in the package example.", flush=True)
+        return
+
+    file_word = "file" if len(source_files) == 1 else "files"
+    print(
+        f"Running clang-tidy on {len(source_files)} package example source "
+        f"{file_word}.",
+        flush=True,
+    )
+    run_clang_tidy(
+        [
+            "clang-tidy",
+            "--quiet",
+            "-p",
+            str(PACKAGE_EXAMPLE_BUILD_DIR),
+            *source_files,
+        ]
+    )
+
+
 def command_test(_: argparse.Namespace) -> None:
     configure_quality_build()
     run_quality_tests()
@@ -611,6 +660,7 @@ def command_check(_: argparse.Namespace) -> None:
     run_quality_tests()
     run_package_consumer_test()
     run_quality_tidy()
+    run_package_example_tidy()
 
 
 def parse_args() -> argparse.Namespace:
@@ -628,7 +678,10 @@ def parse_args() -> argparse.Namespace:
     test_parser = subparsers.add_parser("test", help="Build and run CTest.")
     test_parser.set_defaults(func=command_test)
 
-    tidy_parser = subparsers.add_parser("tidy", help="Run clang-tidy.")
+    tidy_parser = subparsers.add_parser(
+        "tidy",
+        help="Run clang-tidy on the library; check also covers the example.",
+    )
     tidy_parser.set_defaults(func=command_tidy)
 
     package_parser = subparsers.add_parser(
@@ -647,6 +700,14 @@ def main() -> int:
     args = parse_args()
     try:
         args.func(args)
+    except ToolNotFoundError as error:
+        print(
+            f"error: {error.tool} was not found on PATH. "
+            "Install the recommended tools (see docs/tool-versions.md) and check "
+            "them with: python3 scripts/tool_versions.py",
+            file=sys.stderr,
+        )
+        return 1
     except subprocess.CalledProcessError as error:
         return error.returncode
     return 0

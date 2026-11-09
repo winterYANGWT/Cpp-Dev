@@ -25,7 +25,11 @@ cmake --build build/examples/universe_answer
 ctest --test-dir build/examples/universe_answer --output-on-failure
 ```
 
-The standard quality gate also runs this installed-package consumer check:
+The example sets the same warning options as the library. Configure it with
+`-Duniverse_answer_WARNINGS_AS_ERRORS=ON` to make warnings fail the build.
+
+The standard quality gate also runs this installed-package consumer check, with
+warnings as errors, and runs `clang-tidy` on the example's sources:
 
 ```sh
 python3 scripts/quality.py check

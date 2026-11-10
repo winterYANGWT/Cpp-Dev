@@ -75,6 +75,8 @@ starting from an empty Unreleased section.
 
 ### Fixed
 
+- `clang-tidy` reports problems in private headers under `src/`. The header
+  filter only matched source files there.
 - UndefinedBehaviorSanitizer findings now fail the test run.
 - `quality.py` reports a tool missing from `PATH` with one error line and
   exit status 1 instead of a Python traceback.

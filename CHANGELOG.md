@@ -43,8 +43,8 @@ starting from an empty Unreleased section.
 
 ### Changed
 
-- The Windows CI jobs cache pip downloads, the GoogleTest package that vcpkg
-  builds, and LLVM for clang-cl, to shorten the slowest jobs.
+- The Windows CI jobs cache the GoogleTest package that vcpkg builds and LLVM
+  for clang-cl, to shorten the slowest jobs.
 - CMake 4.2 or newer is required, the same version that is recommended. The
   CMake files declared 3.21, but the build already needed 3.26 for
   `cmake -E copy -t`.
@@ -68,6 +68,10 @@ starting from an empty Unreleased section.
   are pinned instead of `-latest`.
 - The ThreadSanitizer CI job disables address space randomization with
   `setarch` instead of changing the kernel setting.
+- The shared library's SONAME carries the project's major and minor version,
+  such as `libproject_name.so.0.1`, and the package version file uses
+  `SameMinorVersion` instead of `SameMajorVersion`. Only patch releases promise
+  a compatible ABI, before and after 1.0.
 
 ### Fixed
 

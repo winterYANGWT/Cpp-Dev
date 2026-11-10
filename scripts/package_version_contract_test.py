@@ -9,6 +9,7 @@ These checks run on Linux because they inspect SONAMEs and `.so` symlinks.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -102,6 +103,16 @@ def run_checked(command: list[str], cwd: Path | None = None) -> None:
         )
 
 
+def generator_arguments() -> list[str]:
+    # The CI contract job installs only Ninja from PyPI and has no make, while
+    # a local machine may have only make. An explicit generator wins.
+    if "CMAKE_GENERATOR" in os.environ:
+        return []
+    if shutil.which("ninja") is not None:
+        return ["-G", "Ninja"]
+    return []
+
+
 def build_and_install(
     source: Path,
     build: Path,
@@ -115,6 +126,7 @@ def build_and_install(
             str(source),
             "-B",
             str(build),
+            *generator_arguments(),
             "-DBUILD_SHARED_LIBS=ON",
             f"-D{name}_BUILD_TESTS=OFF",
             "-DCMAKE_BUILD_TYPE=Release",
@@ -396,6 +408,11 @@ def check_readme_install_contract(case: unittest.TestCase) -> None:
         )
 
 
+class InstallContractDocsTest(unittest.TestCase):
+    def test_readme_documents_the_install_contract(self) -> None:
+        check_readme_install_contract(self)
+
+
 @unittest.skipUnless(
     sys.platform.startswith("linux"),
     "SONAME and .so naming checks require Linux.",
@@ -459,9 +476,6 @@ class PackageVersionContractTest(unittest.TestCase):
         ):
             with self.subTest(version=format_version(version)):
                 check_config_version(self, install_dir, self.name, version)
-
-    def test_readme_documents_the_install_contract(self) -> None:
-        check_readme_install_contract(self)
 
 
 if __name__ == "__main__":

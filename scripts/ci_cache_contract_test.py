@@ -50,7 +50,7 @@ class CiCacheContractTest(unittest.TestCase):
         self.jobs = ci_jobs(self.workflow)
         self.quality_steps = job_steps(self.jobs["quality"])
         self.steps = dict(self.quality_steps)
-        # All cache actions in the quality job; the tests below require three.
+        # All cache actions in the quality job; the tests below require two.
         self.caches = [
             block
             for _, block in self.quality_steps
@@ -65,7 +65,7 @@ class CiCacheContractTest(unittest.TestCase):
         return matches[0]
 
     def test_caches_live_under_the_runner_temp_directory(self) -> None:
-        self.assertEqual(len(self.caches), 3)
+        self.assertEqual(len(self.caches), 2)
         for block in self.caches:
             path = step_field(block, "path")
             with self.subTest(path=path):
@@ -73,18 +73,6 @@ class CiCacheContractTest(unittest.TestCase):
                 self.assertTrue(path.startswith("${{ runner.temp }}"))
                 self.assertNotIn("github.workspace", path)
                 self.assertNotIn("build/", path)
-
-    def test_pip_cache_is_shared_by_both_install_steps(self) -> None:
-        cache = self.cache_with("pip-cache")
-        path = step_field(cache, "path")
-
-        key = step_field(cache, "key")
-        self.assertIn("hashFiles('scripts/tool-requirements.txt')", key)
-        self.assertEqual(step_field(cache, "restore-keys"), "pip-${{ runner.os }}-")
-        for name in ("Install Python tools", "Install macOS tools"):
-            with self.subTest(step=name):
-                self.assertIn(name, self.steps)
-                self.assertEqual(step_field(self.steps[name], "PIP_CACHE_DIR"), path)
 
     def test_vcpkg_cache_matches_the_binary_sources_directory(self) -> None:
         cache = self.cache_with("vcpkg-cache")

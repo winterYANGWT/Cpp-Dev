@@ -125,13 +125,6 @@ jobs:
           if (-not $env:ImageVersion) { throw "ImageVersion is not set" }
           "version=$env:ImageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/pip-cache
-          key: pip-${{ runner.os }}-${{ hashFiles('scripts/tool-requirements.txt') }}
-          restore-keys: pip-${{ runner.os }}-
-
       - name: Cache vcpkg binaries
         if: runner.os == 'Windows'
         uses: actions/cache@v4
@@ -183,8 +176,6 @@ jobs:
 
       - name: Install macOS tools
         if: runner.os == 'macOS'
-        env:
-          PIP_CACHE_DIR: ${{ runner.temp }}/pip-cache
         run: |
           brew install googletest
           python3 -m venv "$RUNNER_TEMP/tools"
@@ -195,8 +186,6 @@ jobs:
       - name: Install Python tools
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          PIP_CACHE_DIR: ${{ runner.temp }}/pip-cache
         run: |
           python -m venv "$env:RUNNER_TEMP\tools"
           & "$env:RUNNER_TEMP\tools\Scripts\python.exe" -m pip install --disable-pip-version-check --quiet -r scripts/tool-requirements.txt

@@ -94,7 +94,6 @@ decides how long CI takes. The `quality` job therefore caches that work with
 `actions/cache`. The caches live in the runner's temporary directory, never in
 the workspace or in `build/`:
 
-- pip downloads on macOS and Windows, keyed by `scripts/tool-requirements.txt`;
 - the GoogleTest package that vcpkg builds on Windows, through vcpkg's binary
   cache, keyed by the runner image version;
 - on the clang-cl rows, the parts of LLVM 21.1.8 that clang-cl needs. Every
@@ -106,7 +105,9 @@ the workspace or in `build/`:
   is never mixed in.
 
 The first run after a cache key changes fills the cache and takes about as
-long as a run without caches.
+long as a run without caches. pip downloads are not cached: installing the
+PyPI tools takes about the same time with a cache, because most of it goes into
+creating the virtual environment and installing the packages.
 
 ### Linux Image
 

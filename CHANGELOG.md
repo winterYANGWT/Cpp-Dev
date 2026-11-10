@@ -77,6 +77,10 @@ starting from an empty Unreleased section.
 
 - `clang-tidy` reports problems in private headers under `src/`. The header
   filter only matched source files there.
+- `quality.py tidy` no longer reports false errors in test headers that use
+  definitions or include paths of the test target. Header smoke translation
+  units are generated only for public headers under `include/`; private and
+  test headers are checked through the sources that include them.
 - UndefinedBehaviorSanitizer findings now fail the test run.
 - `quality.py` reports a tool missing from `PATH` with one error line and
   exit status 1 instead of a Python traceback.

@@ -369,12 +369,18 @@ def first_compile_database_entry(
     return None
 
 
+def public_header_files(header_files: list[str]) -> list[str]:
+    return [
+        header_file
+        for header_file in header_files
+        if Path(header_file).parts[0] == "include"
+    ]
+
+
 def header_include_directive(header_file: str) -> str:
     header_path = Path(header_file)
-    if header_path.parts and header_path.parts[0] == "include":
-        include_path = Path(*header_path.parts[1:])
-        return f"#include <{include_path.as_posix()}>"
-    return f'#include "{(ROOT_DIR / header_path).as_posix()}"'
+    include_path = Path(*header_path.parts[1:])
+    return f"#include <{include_path.as_posix()}>"
 
 
 def write_header_smoke_files(header_files: list[str]) -> list[Path]:
@@ -572,10 +578,13 @@ def run_quality_tidy() -> None:
     source_files = compile_database_source_files(entries)
     if source_files is None:
         source_files = collect_project_files(CXX_SOURCE_SUFFIXES)
-    header_files = collect_project_files(CXX_HEADER_SUFFIXES)
+    # Private and test headers are checked through the source files that
+    # include them, so smoke translation units are generated only for public
+    # headers under include/ (which downstream projects may be the only users of).
+    header_files = public_header_files(collect_project_files(CXX_HEADER_SUFFIXES))
 
     if not source_files and not header_files:
-        print("No C++ source or header files found.", flush=True)
+        print("No C++ source files or public headers found.", flush=True)
         return
 
     if source_files:

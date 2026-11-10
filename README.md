@@ -203,7 +203,7 @@ The `scripts/` directory provides the standard local quality gate:
 python3 scripts/quality.py check
 ```
 
-The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
+The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units for the public headers, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
 
 Use `python` instead of `python3` on platforms where that is the Python 3 executable.
 

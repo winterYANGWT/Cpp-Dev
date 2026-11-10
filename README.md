@@ -272,6 +272,22 @@ Installing a compiled library should install:
 
 The install tree should not expose `src/` paths or any source-tree-only include directories.
 
+### Library Versioning
+
+The shared library's `SOVERSION` is the `major.minor` of the project version, before and after 1.0. A patch release keeps the ABI and the SONAME, so programs built against an earlier patch release load it without a rebuild. A minor or major release may break the ABI and gets a new SONAME, so it can be installed next to the previous one:
+
+| Project version | Library file | SONAME |
+| --- | --- | --- |
+| `0.1.0` | `lib{project_name}.so.0.1.0` | `lib{project_name}.so.0.1` |
+| `0.1.1` | `lib{project_name}.so.0.1.1` | `lib{project_name}.so.0.1` |
+| `1.2.3` | `lib{project_name}.so.1.2.3` | `lib{project_name}.so.1.2` |
+
+The package version file uses `SameMinorVersion` for the same reason: `find_package({project_name} 0.1)` accepts 0.1.x releases, and rejects 0.2 and 1.0.
+
+C++ makes ABI breaks easy to introduce, for example by adding a data member to a class or changing an inline function, and the template does not check the ABI. A library that adds an ABI check can relax this after 1.0 to a `major` `SOVERSION` and `SameMajorVersion`.
+
+On macOS, the dylib name carries the same versions. Windows DLL names carry none.
+
 ## License
 
 New libraries created from this template use GPL-3.0 by default. The template recommends GPL-3.0 to encourage open source, but it is not a requirement: a library created from this template may replace it with another license. See [License](docs/license.md) for what GPL-3.0 means for users of a library, common alternatives, and how to replace the license.

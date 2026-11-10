@@ -34,10 +34,11 @@ function(project_name_install_package target)
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
   )
 
+  # Match the library SOVERSION: only patch releases are ABI compatible.
   write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
+    COMPATIBILITY SameMinorVersion
   )
 
   install(

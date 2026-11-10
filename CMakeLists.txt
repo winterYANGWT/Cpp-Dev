@@ -35,9 +35,12 @@ target_include_directories(${PROJECT_NAME}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 )
 
+# Only patch releases are ABI compatible, so SOVERSION is always major.minor.
 set_target_properties(${PROJECT_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN ON
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
 )
 
 generate_export_header(${PROJECT_NAME}

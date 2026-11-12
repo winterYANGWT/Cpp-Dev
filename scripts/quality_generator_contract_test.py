@@ -17,6 +17,7 @@ import quality
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 PRESETS_FILE = ROOT_DIR / "CMakePresets.json"
+CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 # A generator that does not write compile_commands.json.
 VISUAL_STUDIO_GENERATOR = "Visual Studio 17 2022"
 
@@ -83,6 +84,11 @@ class QualityGeneratorContractTest(unittest.TestCase):
             quality_preset(presets, "testPresets")["configuration"],
             configuration,
         )
+
+    def test_ci_uses_the_quality_configure_args_environment_variable(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn(f"{quality.CMAKE_CONFIGURE_ARGS_ENV}:", workflow)
 
     def test_package_steps_use_quality_configuration(self) -> None:
         quality.run_package_consumer_test()

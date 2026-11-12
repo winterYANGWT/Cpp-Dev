@@ -114,7 +114,7 @@ jobs:
 
       - name: Run quality gate
         env:
-          CPP_DEV_CMAKE_CONFIGURE_ARGS: -G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          QUALITY_CMAKE_ARGS: -G Ninja -DBUILD_SHARED_LIBS=${{ matrix.shared }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
         run: python3 scripts/quality.py check
 
   sanitizers:
@@ -219,7 +219,7 @@ jobs:
       # fails, never because of the percentage.
       - name: Generate coverage report
         env:
-          CPP_DEV_CMAKE_CONFIGURE_ARGS: -G Ninja
+          QUALITY_CMAKE_ARGS: -G Ninja
         run: python3 scripts/coverage.py
 
       - name: Upload coverage report

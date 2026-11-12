@@ -26,23 +26,31 @@ CXX_HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx")
 CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
 STRICT_CXX20_FLAGS = {"-std=c++20"}
-CMAKE_CONFIGURE_ARGS_ENV = "CPP_DEV_CMAKE_CONFIGURE_ARGS"
+CMAKE_CONFIGURE_ARGS_ENV = "QUALITY_CMAKE_ARGS"
 OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ"}
 SKIPPED_DIRECTORY_NAMES = {
     ".cache",
     ".deps",
     ".git",
+    ".idea",
+    ".venv",
+    ".vscode",
     "__pycache__",
     "_deps",
     "build",
     "cmake-build-debug",
     "cmake-build-release",
     "deps",
+    "dist",
     "external",
     "generated",
+    "node_modules",
     "out",
+    "temp",
     "third_party",
+    "tmp",
     "vendor",
+    "venv",
 }
 
 
@@ -598,7 +606,7 @@ def command_check(_: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run CPP-DEV quality commands.")
+    parser = argparse.ArgumentParser(description="Run cpp-library-template quality commands.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     format_parser = subparsers.add_parser("format", help="Format C++ files.")

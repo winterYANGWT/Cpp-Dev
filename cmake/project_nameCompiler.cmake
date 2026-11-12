@@ -93,6 +93,23 @@ function(project_name_configure_cxx_target target)
       message(WARNING "${PROJECT_NAME}_ENABLE_THREAD_SANITIZER is only supported with GCC and Clang, not with MSVC or clang-cl")
     endif()
   endif()
+
+  # Coverage instrumentation uses the same GNU-style compilers as the sanitizers.
+  if(${PROJECT_NAME}_ENABLE_COVERAGE)
+    if(sanitizers_supported)
+      target_compile_options(${target}
+        PRIVATE
+          --coverage
+          -O0
+      )
+      target_link_options(${target}
+        PRIVATE
+          --coverage
+      )
+    else()
+      message(WARNING "${PROJECT_NAME}_ENABLE_COVERAGE is only supported with GCC and Clang, not with MSVC or clang-cl")
+    endif()
+  endif()
 endfunction()
 
 function(project_name_configure_cxx_interface_target target)
@@ -165,6 +182,23 @@ function(project_name_configure_cxx_interface_target target)
       )
     else()
       message(WARNING "${PROJECT_NAME}_ENABLE_THREAD_SANITIZER is only supported with GCC and Clang, not with MSVC or clang-cl")
+    endif()
+  endif()
+
+  # Coverage instrumentation uses the same GNU-style compilers as the sanitizers.
+  if(${PROJECT_NAME}_ENABLE_COVERAGE)
+    if(sanitizers_supported)
+      target_compile_options(${target}
+        INTERFACE
+          $<BUILD_INTERFACE:--coverage>
+          $<BUILD_INTERFACE:-O0>
+      )
+      target_link_options(${target}
+        INTERFACE
+          $<BUILD_INTERFACE:--coverage>
+      )
+    else()
+      message(WARNING "${PROJECT_NAME}_ENABLE_COVERAGE is only supported with GCC and Clang, not with MSVC or clang-cl")
     endif()
   endif()
 endfunction()

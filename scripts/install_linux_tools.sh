@@ -3,7 +3,7 @@
 # such as the debian:13-slim image that CI uses. Run it as root or as a user
 # with sudo:
 #
-#   scripts/install_linux_tools.sh [--doxygen] VENV_DIR
+#   scripts/install_linux_tools.sh [--doxygen] [--gcovr] VENV_DIR
 #
 # Then add VENV_DIR/bin to PATH. The script has two parts. The distribution
 # packages (compiler, Python, git, GoogleTest) can come from any recent
@@ -15,14 +15,32 @@ set -eu
 # Pinned Doxygen release, with the SHA-256 that GitHub lists for the asset.
 doxygen_version=1.15.0
 doxygen_sha256=0ec2e5b2c3cd82b7106d19cb42d8466450730b8cb7a9e85af712be38bf4523a1
+# gcovr needs Python 3.10 or newer.
+gcovr_version=8.8
 
 with_doxygen=false
-if [ "${1:-}" = "--doxygen" ]; then
-  with_doxygen=true
-  shift
-fi
+with_gcovr=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --doxygen)
+      with_doxygen=true
+      shift
+      ;;
+    --gcovr)
+      with_gcovr=true
+      shift
+      ;;
+    -*)
+      echo "usage: $0 [--doxygen] [--gcovr] VENV_DIR" >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 if [ "$#" -ne 1 ]; then
-  echo "usage: $0 [--doxygen] VENV_DIR" >&2
+  echo "usage: $0 [--doxygen] [--gcovr] VENV_DIR" >&2
   exit 2
 fi
 venv_dir=$1
@@ -42,6 +60,11 @@ $sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recomme
 python3 -m venv "$venv_dir"
 "$venv_dir/bin/python" -m pip install --disable-pip-version-check --quiet \
   -r "$script_dir/tool-requirements.txt"
+
+if [ "$with_gcovr" = true ]; then
+  "$venv_dir/bin/python" -m pip install --disable-pip-version-check --quiet \
+    "gcovr==$gcovr_version.*"
+fi
 
 if [ "$with_doxygen" = true ]; then
   archive="$venv_dir/doxygen-$doxygen_version.linux.bin.tar.gz"

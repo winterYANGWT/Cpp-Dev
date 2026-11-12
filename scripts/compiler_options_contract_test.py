@@ -291,6 +291,43 @@ class CompilerOptionsContractTest(unittest.TestCase):
                     self.assertTrue(example.compile_options)
                     self.assertEqual(example.compile_options, library.compile_options)
 
+    def test_coverage_applies_to_gnu_style_compilers(self) -> None:
+        for compiler_name, compiler in GNU_STYLE_COMPILERS.items():
+            for function in CONFIGURE_FUNCTIONS:
+                with self.subTest(compiler=compiler_name, function=function):
+                    result = self.probe(function, compiler, ENABLE_COVERAGE="ON")
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("--coverage", result.compile_options)
+                    self.assertIn("-O0", result.compile_options)
+                    self.assertIn("--coverage", result.link_options)
+
+    def test_coverage_warns_for_msvc_style_compilers(self) -> None:
+        for compiler_name, compiler in MSVC_STYLE_COMPILERS.items():
+            for function in CONFIGURE_FUNCTIONS:
+                with self.subTest(compiler=compiler_name, function=function):
+                    result = self.probe(function, compiler, ENABLE_COVERAGE="ON")
+                    options = (*result.compile_options, *result.link_options)
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn("--coverage", options)
+                    self.assertNotIn("-O0", options)
+                    self.assertIn(
+                        "project_name_ENABLE_COVERAGE is only supported",
+                        result.stderr,
+                    )
+
+    def test_coverage_is_disabled_by_default(self) -> None:
+        compilers = {**GNU_STYLE_COMPILERS, **MSVC_STYLE_COMPILERS}
+        for compiler_name, compiler in compilers.items():
+            for function in CONFIGURE_FUNCTIONS:
+                with self.subTest(compiler=compiler_name, function=function):
+                    result = self.probe(function, compiler)
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn("--coverage", result.compile_options)
+                    self.assertNotIn("--coverage", result.link_options)
+
     def test_windows_ci_builds_with_clang_cl(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 

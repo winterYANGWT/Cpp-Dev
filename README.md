@@ -50,7 +50,8 @@ Also replace the template's entries in `CHANGELOG.md` with the project's own his
 - [Release Branching Contract](docs/release-branching.md): branch roles,
   SemVer release flow, hotfix flow, and old-version support flow.
 - [Tool Versions](docs/tool-versions.md): recommended versions of
-  clang-format, clang-tidy, CMake, and Doxygen, and the environments CI uses.
+  clang-format, clang-tidy, CMake, Doxygen, and gcovr, and the environments CI
+  uses.
 - [License](docs/license.md): why the template recommends GPL-3.0, what it
   means for users of a library, and how to replace it.
 - [Contributing](CONTRIBUTING.md): checks to run before submitting a change,
@@ -169,7 +170,7 @@ Every library should use CMake `4.2` or newer and build as strict C++20. Project
 
 C++20 module scanning is off: the root `CMakeLists.txt` and the example's `CMakeLists.txt` set `CMAKE_CXX_SCAN_FOR_MODULES` to `OFF` right after `project()`, before any target is created. The template does not use modules, and since CMake 3.28 (policy CMP0155), scanning is on by default for C++20 targets; with GCC it adds flags to `compile_commands.json` that `clang-tidy` cannot read. A project that adopts modules can turn scanning back on, but should then run `clang-tidy` against a Clang build.
 
-The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
+The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers and coverage are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
 
 The root CMake project should define one main library target named `{project_name}` and an alias target named `{project_name}::{project_name}`. The alias target is the stable interface used by tests, examples, and downstream consumers.
 
@@ -222,6 +223,14 @@ ctest --preset tsan
 The `asan-ubsan` preset compiles with `-fno-sanitize-recover=all`, so any UndefinedBehaviorSanitizer report fails the test instead of only printing a diagnostic.
 
 The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `project_name_ENABLE_SANITIZERS` and `project_name_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping` or `incompatible memory layout`, the kernel's mmap randomization breaks its memory layout. Run the build and the tests under `setarch "$(uname -m)" -R`, which turns randomization off for them and does not need root, as the CI job does. The build needs it too, because it runs the test executable to list the tests. In a Docker container, `setarch` also needs `--security-opt seccomp=unconfined`. Lowering the randomization for the whole system with `sudo sysctl vm.mmap_rnd_bits=28` works as well.
+
+To see which lines of `src/` and `include/` the tests run, generate a coverage report. It needs gcovr; see [Tool Versions](docs/tool-versions.md).
+
+```sh
+python3 scripts/coverage.py
+```
+
+The script builds and tests the `coverage` preset, which compiles with `--coverage -O0` (GCC and Clang only), and writes `coverage.txt` and `coverage.html` to `build/coverage-report/`. Coverage is advisory: `quality.py check` does not run it, there is no minimum percentage, and the CI `Coverage` job only uploads the report as an artifact. GCC and Clang count some lines differently, for example the closing brace after a `throw`, so compare reports from the same compiler.
 
 To check formatting before each commit, you can opt in to the [pre-commit hook](scripts/README.md#pre-commit-hook).
 

@@ -23,6 +23,7 @@ minimum version. Newer CMake releases work.
 | clang-tidy | 21.1 | New releases add and extend checks, and `.clang-tidy` treats every warning as an error. |
 | CMake | 4.2 | The version that CI builds with, and also the minimum: the CMake files declare `cmake_minimum_required(VERSION 4.2)`. Newer versions work. |
 | Doxygen | 1.15 | Only needed for the `docs` preset. Use 1.13 or newer: older versions do not report undocumented namespaces. |
+| gcovr | 8.8 | Only needed for coverage reports (`scripts/coverage.py`). Needs Python 3.10 or newer. |
 | Ninja | any | The version does not affect results. |
 
 Only major.minor matters. Patch releases of clang-format 21.1 and clang-tidy
@@ -89,8 +90,9 @@ vcpkg. Its version does not affect results.
 
 ### Actions and Token
 
-The workflow uses three actions: `actions/checkout`, `actions/cache`, and on
-Windows `step-security/msvc-dev-cmd`. Each is pinned to the full commit SHA of
+The workflow uses four actions: `actions/checkout`, `actions/cache`,
+`actions/upload-artifact` for the coverage report, and on Windows
+`step-security/msvc-dev-cmd`. Each is pinned to the full commit SHA of
 a release, with the release in a trailing comment, so that moving a tag cannot
 change what runs. To update an action, look up the commit of the new release,
 for example with
@@ -151,8 +153,8 @@ The script has two parts:
   and `ubuntu:26.04`; for another distribution, replace this part with its
   package manager.
 - **Tools with recommended versions**: clang-format, clang-tidy, CMake, and
-  Ninja from PyPI, and with `--doxygen`, the pinned Doxygen release, checked
-  against its SHA-256. This part is the same on every Linux image with glibc
+  Ninja from PyPI; with `--doxygen`, the pinned Doxygen release, checked
+  against its SHA-256; and with `--gcovr`, the pinned gcovr release from PyPI. This part is the same on every Linux image with glibc
   2.28 or newer; the Doxygen release needs glibc 2.34 or newer, which Debian
   12, Ubuntu 22.04, and later releases provide.
 
@@ -188,7 +190,8 @@ the `tsan` preset locally.
    the Chocolatey LLVM version and the version in the LLVM cache key and
    directory in `.github/workflows/ci.yml`, which
    `scripts/ci_cache_contract_test.py` checks; for Doxygen,
-   update the version and SHA-256 in `scripts/install_linux_tools.sh`. For
+   update the version and SHA-256 in `scripts/install_linux_tools.sh`, and for
+   gcovr, `gcovr_version` in the same script. For
    CMake, the recommendation is also the minimum version: update
    `cmake_minimum_required` in `CMakeLists.txt` and
    `examples/universe_answer/CMakeLists.txt`, `cmakeMinimumRequired` in

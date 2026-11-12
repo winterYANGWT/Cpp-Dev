@@ -67,6 +67,19 @@
       }
     },
     {
+      "name": "coverage",
+      "displayName": "Coverage",
+      "description": "Configure a Debug build with gcov coverage instrumentation.",
+      "binaryDir": "${sourceDir}/build/coverage",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "project_name_ENABLE_COVERAGE": "ON",
+        "project_name_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
       "name": "docs",
       "displayName": "Docs",
       "description": "Generate the API documentation with Doxygen; Doxygen warnings are errors.",
@@ -108,6 +121,12 @@
       "name": "tsan",
       "displayName": "TSan",
       "configurePreset": "tsan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage",
+      "configurePreset": "coverage",
       "configuration": "Debug"
     },
     {
@@ -160,6 +179,15 @@
       "name": "tsan",
       "displayName": "TSan",
       "configurePreset": "tsan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage",
+      "configurePreset": "coverage",
       "configuration": "Debug",
       "output": {
         "outputOnFailure": true

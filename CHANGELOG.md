@@ -40,6 +40,11 @@ starting from an empty Unreleased section.
   the quality gate.
 - `docs/license.md`, which explains why the template recommends GPL-3.0, what
   it means for users of a library, and how to replace it.
+- Optional coverage reports: the `coverage` preset and
+  `project_name_ENABLE_COVERAGE` option build with `--coverage` on GCC and
+  Clang, and `scripts/coverage.py` writes a gcovr report of `src/` and
+  `include/`. A CI job uploads the report as an artifact. Coverage is
+  advisory: it has no threshold and is not part of `quality.py check`.
 
 ### Changed
 

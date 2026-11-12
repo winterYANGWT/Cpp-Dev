@@ -98,6 +98,21 @@ Private headers under `src/` and helper headers under `test/` get no smoke trans
 
 Header smoke checks are useful for standalone include coverage, but they do not replace tests or examples that instantiate templates and exercise runtime behavior.
 
+## `coverage.py`
+
+`coverage.py` writes an optional line coverage report. It needs [gcovr](../docs/tool-versions.md) on `PATH` and checks for it before building.
+
+```sh
+python3 scripts/coverage.py
+python3 scripts/coverage.py --gcov-executable "xcrun llvm-cov gcov"
+```
+
+The script configures, builds, and tests the `coverage` preset in `build/coverage`, which compiles with `--coverage -O0`. It deletes the `.gcda` counters after the build and before CTest, because the build runs the test executable to list the tests and earlier runs leave counters behind. gcovr then writes `coverage.txt` and an HTML report with one page per file to `build/coverage-report/`, and prints a summary. The report covers only files under `src/` and `include/`; files that no test executable links are listed with 0%. `CPP_DEV_CMAKE_CONFIGURE_ARGS` works as for `quality.py`. To switch compilers, remove `build/coverage` first.
+
+gcov data is specific to the compiler: GCC's `gcov` cannot read Clang's files, and `llvm-cov gcov` cannot read GCC's. The script asks CMake for the compiler and picks the matching tool: `gcov-N` or `gcov` for GCC N, and for Clang the `llvm-cov` next to the real compiler, then `llvm-cov-N` or `llvm-cov` on `PATH`. If it finds none, for example with AppleClang, pass the command with `--gcov-executable`. MSVC and clang-cl are not supported.
+
+Coverage is advisory. It sets no minimum, `quality.py check` does not run it, and the `Coverage` CI job fails only when the build or a test fails. That job uploads `build/coverage-report/` as the `coverage-report` artifact of the run.
+
 ## Tool Versions
 
 `tool-requirements.txt` lists the recommended versions of clang-format, clang-tidy, and CMake as major.minor pins, plus Ninja. They are recommendations, not requirements; see [docs/tool-versions.md](../docs/tool-versions.md). CI installs the tools from this file with `pip`.
@@ -112,10 +127,10 @@ python3 scripts/tool_versions.py --strict --tool clang-cl
 
 Without `--strict`, a different or missing tool only prints a warning. CI uses `--strict`, which fails instead. `--tool` also checks another LLVM tool, such as `clang-cl`, against the recommended LLVM version. `quality.py` does not check versions itself. When a tool it runs is not on `PATH`, it prints one error line that names the tool and points to `docs/tool-versions.md`, then exits with status 1.
 
-`install_linux_tools.sh` sets up a Debian or Ubuntu system, such as the `debian:13-slim` image that the Linux CI jobs use. It installs a compiler, Python, git, and GoogleTest with `apt-get`, then creates a virtual environment and installs `tool-requirements.txt` into it. With `--doxygen`, it also installs the pinned Doxygen release after checking its SHA-256. Run it as root or with `sudo`, then add the environment's `bin` directory to `PATH`:
+`install_linux_tools.sh` sets up a Debian or Ubuntu system, such as the `debian:13-slim` image that the Linux CI jobs use. It installs a compiler, Python, git, and GoogleTest with `apt-get`, then creates a virtual environment and installs `tool-requirements.txt` into it. With `--doxygen`, it also installs the pinned Doxygen release after checking its SHA-256, and with `--gcovr`, the pinned gcovr release from PyPI. Run it as root or with `sudo`, then add the environment's `bin` directory to `PATH`:
 
 ```sh
-sh scripts/install_linux_tools.sh [--doxygen] /opt/tools
+sh scripts/install_linux_tools.sh [--doxygen] [--gcovr] /opt/tools
 export PATH="/opt/tools/bin:$PATH"
 ```
 
@@ -143,7 +158,8 @@ for test in scripts/*_test.py; do python3 "$test"; done
 - `ci_hardening_contract_test.py` verifies that the CI workflow gives every job a read-only `GITHUB_TOKEN` and cancels an older run for the same branch or pull request, that every action is pinned to a full commit SHA with its release in a comment and uses one release throughout, that no action uses a release that runs on Node.js 20, and that every job checks out the repository once without keeping the token.
 - `cmake_minimum_contract_test.py` verifies that every `cmake_minimum_required` and the `cmakeMinimumRequired` of `CMakePresets.json` declare the recommended CMake version from `tool-requirements.txt` as the minimum, and that `README.md` and `docs/tool-versions.md` state the same version. It also verifies that the preset file format and the CMake features the build uses, such as `cmake -E copy -t`, need no newer CMake than the declared minimum.
 - `community_health_contract_test.py` verifies that the contributing guide, security policy, changelog, issue forms, and pull request template exist with their key sections, that the README links to them, and that their relative links resolve.
-- `compiler_options_contract_test.py` loads the CMake option and compiler modules in CMake script mode, with the target commands replaced by stand-ins that record their arguments. It verifies that MSVC and clang-cl get MSVC-style options, that GCC, Clang, AppleClang, and clang++ for the MSVC ABI get GNU-style options, that sanitizers apply only to GNU-style compilers, that ThreadSanitizer cannot be combined with AddressSanitizer, and that Windows CI builds with clang-cl. It also runs the example's `CMakeLists.txt` the same way and verifies that the example gets the library's warning options for each compiler. It is skipped when `cmake` is not installed.
+- `compiler_options_contract_test.py` loads the CMake option and compiler modules in CMake script mode, with the target commands replaced by stand-ins that record their arguments. It verifies that MSVC and clang-cl get MSVC-style options, that GCC, Clang, AppleClang, and clang++ for the MSVC ABI get GNU-style options, that sanitizers and coverage apply only to GNU-style compilers, that coverage is off by default, that ThreadSanitizer cannot be combined with AddressSanitizer, and that Windows CI builds with clang-cl. It also runs the example's `CMakeLists.txt` the same way and verifies that the example gets the library's warning options for each compiler. It is skipped when `cmake` is not installed.
+- `coverage_contract_test.py` verifies that coverage is off by default and only the `coverage` presets turn it on, that `coverage.py` picks the gcov tool that matches the compiler, deletes the counters left by the build before it runs CTest, and reports only `src/` and `include/` without a threshold, and that a missing gcovr produces one error line before the build. It also verifies that `quality.py` does not run coverage, that the `Coverage` CI job installs gcovr and uploads the report without a threshold or an external service, and that the pinned gcovr version matches `docs/tool-versions.md`.
 - `docs_contract_test.py` loads the CMake option and docs modules in CMake script mode, with `find_package` and `add_custom_target` replaced by stand-ins, and checks the generated Doxyfile: Doxygen reads `include/`, writes only HTML, warns about undocumented namespaces and symbols, and fails on warnings when warnings are errors. It also verifies that the documentation is opt-in, that the `docs` presets build only the documentation target, that CMake warns about Doxygen before 1.13, and that CI generates the documentation on Ubuntu 26.04. When `doxygen` is installed, it runs Doxygen on the public headers and verifies that undocumented API fails. It is skipped when `cmake` is not installed.
 - `gitignore_contract_test.py` verifies that user-local files such as `CMakeUserPresets.json` are ignored. It is skipped outside a git work tree.
 - `header_smoke_contract_test.py` verifies that `quality.py tidy` generates header smoke translation units only for headers under the top-level `include/` directory, that it runs no header smoke pass when there are no public headers, and that each smoke file includes its header with angle brackets relative to `include/`.

@@ -360,6 +360,44 @@ jobs:
       - name: Test
         run: setarch "$(uname -m)" -R ctest --preset tsan
 
+  coverage:
+    name: Coverage (debian-13)
+    runs-on: ubuntu-24.04
+    container: debian:13-slim
+
+    steps:
+      - name: Install git
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install tools
+        run: |
+          sh scripts/install_linux_tools.sh --gcovr "$RUNNER_TEMP/tools"
+          echo "$RUNNER_TEMP/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Verify tool versions
+        run: python scripts/tool_versions.py --strict
+
+      # Coverage is advisory: the job fails only when the build or a test
+      # fails, never because of the percentage.
+      - name: Generate coverage report
+        env:
+          CPP_DEV_CMAKE_CONFIGURE_ARGS: -G Ninja
+        run: python3 scripts/coverage.py
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: build/coverage-report/
+          if-no-files-found: error
+
   docs:
     name: Docs (debian-13)
     runs-on: ubuntu-24.04

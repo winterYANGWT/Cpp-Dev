@@ -21,7 +21,6 @@ starting from an empty Unreleased section.
 - `.gitattributes` and `.editorconfig` with an LF line ending policy.
 - `tsan` preset and `project_name_ENABLE_THREAD_SANITIZER` option for
   ThreadSanitizer, with a CI job.
-- clang-cl builds in the Windows CI matrix.
 - Optional pre-commit hook that checks formatting.
 - Contributing guide, security policy, changelog, and issue and pull request
   templates.
@@ -45,11 +44,11 @@ starting from an empty Unreleased section.
   Clang, and `scripts/coverage.py` writes a gcovr report of `src/` and
   `include/`. A CI job uploads the report as an artifact. Coverage is
   advisory: it has no threshold and is not part of `quality.py check`.
+- A Clang build in the CI quality job, next to GCC 14. It uses Debian's
+  clang 19, which `scripts/install_linux_tools.sh --clang` installs.
 
 ### Changed
 
-- The Windows CI jobs cache the GoogleTest package that vcpkg builds and LLVM
-  for clang-cl, to shorten the slowest jobs.
 - CMake 4.2 or newer is required, the same version that is recommended. The
   CMake files declared 3.21, but the build already needed 3.26 for
   `cmake -E copy -t`.
@@ -57,8 +56,6 @@ starting from an empty Unreleased section.
   default, and with GCC it adds flags that `clang-tidy` cannot read.
 - GPL-3.0 is described as a recommendation, not a requirement: libraries
   created from the template may replace the license.
-- Compiler options are chosen by the compiler frontend, so clang-cl gets
-  MSVC-style options instead of GCC-style ones.
 - `quality.py package` installs and tests the configuration built by the
   quality presets, and configures the package example with the same CMake
   arguments as the library.
@@ -69,22 +66,27 @@ starting from an empty Unreleased section.
   consumer check builds the example with warnings as errors.
 - `project_name_WARNINGS_AS_ERRORS` also turns Doxygen warnings into errors.
 - CI installs the recommended tool versions and fails when a job runs other
-  versions. Linux jobs run in a `debian:13-slim` container, and runner labels
+  versions. CI jobs run in a `debian:13-slim` container, and runner labels
   are pinned instead of `-latest`.
 - The ThreadSanitizer CI job disables address space randomization with
   `setarch` instead of changing the kernel setting.
 - CI jobs get a read-only `GITHUB_TOKEN`, and checkout does not keep the token
   for the steps after it. A new CI run for the same branch or pull request
   cancels the older one.
-- CI actions are pinned to commit SHAs and updated to releases that run on
-  Node.js 24: `actions/checkout` 7.0.1 and `actions/cache` 6.1.0. The MSVC
-  environment comes from `step-security/msvc-dev-cmd` 1.13.1, a maintained
-  fork of `ilammy/msvc-dev-cmd`, which needs a StepSecurity subscription in
-  private repositories.
+- CI actions are pinned to commit SHAs and use releases that run on
+  Node.js 24, such as `actions/checkout` 7.0.1.
 - The shared library's SONAME carries the project's major and minor version,
   such as `libproject_name.so.0.1`, and the package version file uses
   `SameMinorVersion` instead of `SameMajorVersion`. Only patch releases promise
   a compatible ABI, before and after 1.0.
+
+### Removed
+
+- Windows and macOS support. The template supports Linux only, with GCC or
+  Clang: the CMake configure functions stop with an error for MSVC, clang-cl,
+  and other compilers, and CI no longer runs on Windows and macOS. `7c263d3`
+  is the last commit with Windows and macOS support, for projects that need
+  to bring it back.
 
 ### Fixed
 

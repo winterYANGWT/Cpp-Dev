@@ -4,11 +4,13 @@
 
 The template should stay small. Individual libraries may add their own dependencies, modules, examples, tools, and platform-specific build logic, but they should keep the public layout and package interface consistent.
 
+The template supports Linux only, with GCC or Clang; CI builds with GCC 14 and Clang 19 on Debian 13. MSVC and clang-cl stop the CMake configure step with an error. On Windows, use WSL; on macOS, use a Linux container or virtual machine.
+
 ## Quick Start
 
 Create a new repository from GitHub's `Use this template` button, then initialize the placeholder project name before adding real code.
 
-Linux, macOS, WSL, or Git Bash:
+Linux or WSL:
 
 ```sh
 git clone <new-repository-url>
@@ -17,18 +19,6 @@ python3 scripts/rename_project.py --dry-run
 python3 scripts/rename_project.py
 python3 scripts/quality.py check
 ```
-
-Windows PowerShell:
-
-```powershell
-git clone <new-repository-url>
-Set-Location <new-repository-directory>
-python scripts/rename_project.py --dry-run
-python scripts/rename_project.py
-python scripts/quality.py check
-```
-
-On Windows, set the environment variables from [Required Local Tools](#required-local-tools) before running `quality.py`. Without `-G Ninja`, CMake uses the Visual Studio generator, which does not write the `compile_commands.json` that `clang-tidy` needs, so `quality.py check` stops after configuring.
 
 When no project name is provided, `rename_project.py` infers it from the repository directory name. GitHub repository names may use hyphens; inferred names convert hyphens to underscores and lowercase the result.
 
@@ -64,9 +54,9 @@ Issue forms and the pull request template live under `.github/`.
 
 ## Required Local Tools
 
-The quality gate expects CMake, a C++20 compiler, `clang-format`, `clang-tidy`, and GoogleTest.
+The quality gate expects CMake, GCC or Clang with C++20 support, `clang-format`, `clang-tidy`, and GoogleTest.
 
-CMake 4.2 or newer is required: the CMake files declare it as their minimum version. This repository recommends clang-format and clang-tidy 21.1 and CMake 4.2, the versions that CI uses. Apart from the CMake minimum, these are recommendations, not requirements: other versions usually work, but formatting and `clang-tidy` results can differ from CI. See [Tool Versions](docs/tool-versions.md) for the reasons and for installing the recommended versions from PyPI on any platform. To compare your tools with the recommendations, run:
+CMake 4.2 or newer is required: the CMake files declare it as their minimum version. This repository recommends clang-format and clang-tidy 21.1 and CMake 4.2, the versions that CI uses. Apart from the CMake minimum, these are recommendations, not requirements: other versions usually work, but formatting and `clang-tidy` results can differ from CI. See [Tool Versions](docs/tool-versions.md) for the reasons and for installing the recommended versions from PyPI. To compare your tools with the recommendations, run:
 
 ```sh
 python3 scripts/tool_versions.py
@@ -80,30 +70,6 @@ sudo apt-get install -y cmake clang-format clang-tidy libgtest-dev
 ```
 
 On Ubuntu 26.04 these packages have the recommended versions. Older releases, such as Ubuntu 24.04 and Debian 13, provide a CMake older than 4.2, which is too old for the build: install CMake from PyPI instead, as described in [Tool Versions](docs/tool-versions.md), and clang-format and clang-tidy as well if you want to match CI.
-
-macOS with Homebrew:
-
-```sh
-brew install cmake googletest llvm@21
-export PATH="$(brew --prefix llvm@21)/bin:$PATH"
-export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-```
-
-Windows with MSVC Build Tools, Python, Chocolatey, and vcpkg. The CMake that comes with Visual Studio can be older than 4.2, so install CMake, Ninja, clang-format, and clang-tidy from PyPI, as CI does:
-
-```powershell
-python -m venv $HOME\.venvs\cpp-dev-tools
-& $HOME\.venvs\cpp-dev-tools\Scripts\pip install -r scripts/tool-requirements.txt
-$env:PATH = "$HOME\.venvs\cpp-dev-tools\Scripts;$env:PATH"
-choco install llvm --version=21.1.8 -y
-vcpkg install gtest:x64-windows
-$env:CC = "cl"
-$env:CXX = "cl"
-$env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
-python scripts/quality.py check
-```
-
-The LLVM package provides clang-cl. To build with clang-cl, use `clang-cl` in place of `cl` in `CC`, `CXX`, and the compiler arguments.
 
 The template does not download GoogleTest for you. If CMake cannot find
 `GTest CONFIG`, install GoogleTest with your package manager or build it
@@ -170,7 +136,7 @@ Every library should use CMake `4.2` or newer and build as strict C++20. Project
 
 C++20 module scanning is off: the root `CMakeLists.txt` and the example's `CMakeLists.txt` set `CMAKE_CXX_SCAN_FOR_MODULES` to `OFF` right after `project()`, before any target is created. The template does not use modules, and since CMake 3.28 (policy CMP0155), scanning is on by default for C++20 targets; with GCC it adds flags to `compile_commands.json` that `clang-tidy` cannot read. A project that adopts modules can turn scanning back on, but should then run `clang-tidy` against a Clang build.
 
-The configure functions choose compiler options by the compiler frontend, not by the compiler ID. MSVC and clang-cl get `/W4 /permissive-`, plus `/WX` when warnings are errors. GCC, Clang, and AppleClang get `-Wall -Wextra -Wpedantic`, plus `-Werror`. Sanitizers and coverage are only applied with GCC and Clang; MSVC and clang-cl get a configure warning instead.
+The configure functions accept GCC and Clang and give them `-Wall -Wextra -Wpedantic`, plus `-Werror` when warnings are errors. Any other compiler, and any compiler that takes MSVC-style options, such as MSVC and clang-cl, stops the configure step with an error. AppleClang takes the same options as Clang and is accepted, but CI does not test it.
 
 The root CMake project should define one main library target named `{project_name}` and an alias target named `{project_name}::{project_name}`. The alias target is the stable interface used by tests, examples, and downstream consumers.
 
@@ -178,7 +144,7 @@ The template CMake files should prefer `${PROJECT_NAME}` for repeated project-de
 
 Each library target must expose both build-tree and install-tree include paths. The build interface points at the source tree `include/` directory and the generated export-header include directory. The install interface points at the installed include directory.
 
-Compiled libraries must generate and install an export header named `<{project_name}/export.h>`. Public API declarations exported from a shared library should use the generated `{PROJECT_NAME}_EXPORT` macro. Targets should use hidden default visibility so shared-library exports are intentional on Windows, macOS, and ELF platforms.
+Compiled libraries must generate and install an export header named `<{project_name}/export.h>`. Public API declarations exported from a shared library should use the generated `{PROJECT_NAME}_EXPORT` macro. Targets should use hidden default visibility so shared-library exports are intentional.
 
 Install support is required by default. The install option should be named `{project_name}_INSTALL`, and its default should follow whether the project is the top-level CMake project. This keeps standalone builds installable while avoiding unwanted installs when the library is included through `add_subdirectory`.
 
@@ -205,8 +171,6 @@ python3 scripts/quality.py check
 ```
 
 The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units for the public headers, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
-
-Use `python` instead of `python3` on platforms where that is the Python 3 executable.
 
 Useful build-variant checks:
 
@@ -294,8 +258,6 @@ The shared library's `SOVERSION` is the `major.minor` of the project version, be
 The package version file uses `SameMinorVersion` for the same reason: `find_package({project_name} 0.1)` accepts 0.1.x releases, and rejects 0.2 and 1.0.
 
 C++ makes ABI breaks easy to introduce, for example by adding a data member to a class or changing an inline function, and the template does not check the ABI. A library that adds an ABI check can relax this after 1.0 to a `major` `SOVERSION` and `SameMajorVersion`.
-
-On macOS, the dylib name carries the same versions. Windows DLL names carry none.
 
 ## License
 

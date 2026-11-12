@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import ctypes
 import json
 import os
 import shlex
@@ -26,10 +25,9 @@ PACKAGE_EXAMPLE_WARNINGS_AS_ERRORS = "universe_answer_WARNINGS_AS_ERRORS"
 CXX_HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx")
 CXX_SOURCE_SUFFIXES = (".cc", ".cpp", ".cxx")
 CXX_SUFFIXES = (*CXX_HEADER_SUFFIXES, *CXX_SOURCE_SUFFIXES)
-STRICT_CXX20_FLAGS = {"-std=c++20", "-std:c++20", "/std:c++20"}
+STRICT_CXX20_FLAGS = {"-std=c++20"}
 CMAKE_CONFIGURE_ARGS_ENV = "CPP_DEV_CMAKE_CONFIGURE_ARGS"
-MACOS_SDKROOT_ENV = "SDKROOT"
-OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ", "/Fo", "/Fd"}
+OUTPUT_OPTIONS_WITH_VALUE = {"-o", "-MF", "-MT", "-MQ", "-MJ"}
 SKIPPED_DIRECTORY_NAMES = {
     ".cache",
     ".deps",
@@ -48,41 +46,6 @@ SKIPPED_DIRECTORY_NAMES = {
 }
 
 
-def macos_sdkroot() -> str | None:
-    if sys.platform != "darwin":
-        return None
-
-    sdkroot = os.environ.get(MACOS_SDKROOT_ENV, "").strip()
-    if sdkroot:
-        return sdkroot
-
-    xcrun = shutil.which("xcrun")
-    if xcrun is None:
-        return None
-
-    result = subprocess.run(
-        [xcrun, "--sdk", "macosx", "--show-sdk-path"],
-        cwd=ROOT_DIR,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-
-    sdkroot = result.stdout.strip()
-    return sdkroot if sdkroot else None
-
-
-def command_environment() -> dict[str, str]:
-    env = os.environ.copy()
-    sdkroot = macos_sdkroot()
-    if sdkroot and not env.get(MACOS_SDKROOT_ENV):
-        env[MACOS_SDKROOT_ENV] = sdkroot
-    return env
-
-
 class ToolNotFoundError(Exception):
     def __init__(self, tool: str) -> None:
         super().__init__(tool)
@@ -92,7 +55,7 @@ class ToolNotFoundError(Exception):
 def run(command: list[str]) -> None:
     print("+ " + " ".join(command), flush=True)
     try:
-        subprocess.run(command, cwd=ROOT_DIR, env=command_environment(), check=True)
+        subprocess.run(command, cwd=ROOT_DIR, check=True)
     except FileNotFoundError as error:
         raise ToolNotFoundError(command[0]) from error
 
@@ -120,7 +83,6 @@ def run_clang_tidy(command: list[str]) -> None:
         result = subprocess.run(
             command,
             cwd=ROOT_DIR,
-            env=command_environment(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -239,32 +201,6 @@ def verify_standard_cpp() -> None:
     print("Strict C++20 compile mode verified.", flush=True)
 
 
-def windows_command_line_tokens(command: str) -> list[str] | None:
-    if os.name != "nt":
-        return None
-
-    try:
-        argc = ctypes.c_int()
-        shell32 = ctypes.windll.shell32
-        shell32.CommandLineToArgvW.argtypes = [
-            ctypes.c_wchar_p,
-            ctypes.POINTER(ctypes.c_int),
-        ]
-        shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.c_wchar_p)
-        kernel32 = ctypes.windll.kernel32
-        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
-        kernel32.LocalFree.restype = ctypes.c_void_p
-        argv = shell32.CommandLineToArgvW(command, ctypes.byref(argc))
-        if not argv:
-            return None
-        try:
-            return [argv[index] for index in range(argc.value)]
-        finally:
-            kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
-    except (AttributeError, OSError, ValueError):
-        return None
-
-
 def compile_command_tokens(entry: dict[str, object]) -> list[str] | None:
     arguments = entry.get("arguments")
     if isinstance(arguments, list):
@@ -272,10 +208,7 @@ def compile_command_tokens(entry: dict[str, object]) -> list[str] | None:
 
     command = entry.get("command")
     if isinstance(command, str):
-        windows_tokens = windows_command_line_tokens(command)
-        if windows_tokens is not None:
-            return windows_tokens
-        return shlex.split(command, posix=os.name != "nt")
+        return shlex.split(command)
 
     return None
 
@@ -344,15 +277,11 @@ def smoke_compile_tokens(
             continue
         if token.startswith("-o") and token != "-o":
             continue
-        if token.startswith("/Fo") and token != "/Fo":
-            continue
-        if token.startswith("/Fd") and token != "/Fd":
-            continue
         if source_file is not None and token_matches_path(token, source_file, base_dir):
             continue
         flags.append(token)
 
-    if "-c" not in flags and "/c" not in flags:
+    if "-c" not in flags:
         flags.append("-c")
 
     return [compiler, *flags, str(smoke_file)]
@@ -454,11 +383,7 @@ def has_cmake_cache_arg(args: list[str], name: str) -> bool:
 
 def cmake_configure_args() -> list[str]:
     extra_args = os.environ.get(CMAKE_CONFIGURE_ARGS_ENV, "").strip()
-    configure_args = shlex.split(extra_args, posix=os.name != "nt") if extra_args else []
-    sdkroot = macos_sdkroot()
-    if sdkroot and not has_cmake_cache_arg(configure_args, "CMAKE_OSX_SYSROOT"):
-        configure_args.append(f"-DCMAKE_OSX_SYSROOT={sdkroot}")
-    return configure_args
+    return shlex.split(extra_args) if extra_args else []
 
 
 def cmake_configure_command() -> list[str]:

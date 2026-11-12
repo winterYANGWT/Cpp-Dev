@@ -135,9 +135,6 @@ class CoverageContractTest(unittest.TestCase):
                 f"The {name} configure preset must not enable coverage.",
             )
 
-    @unittest.skipIf(
-        os.name == "nt", "fake executable scripts need a POSIX shell"
-    )
     def test_gcov_command_prefers_versioned_gnu_gcov(self) -> None:
         directory = self.make_temp_dir()
         compiler = self.make_executable(directory / "g++")
@@ -152,9 +149,6 @@ class CoverageContractTest(unittest.TestCase):
 
         self.assertEqual(command, [str(versioned)])
 
-    @unittest.skipIf(
-        os.name == "nt", "fake executable scripts need a POSIX shell"
-    )
     def test_gcov_command_falls_back_to_unversioned_gnu_gcov(self) -> None:
         directory = self.make_temp_dir()
         compiler = self.make_executable(directory / "g++")
@@ -168,9 +162,6 @@ class CoverageContractTest(unittest.TestCase):
 
         self.assertEqual(command, [str(gcov)])
 
-    @unittest.skipIf(
-        os.name == "nt", "symbolic links need a POSIX filesystem"
-    )
     def test_gcov_command_resolves_clang_symlink_for_llvm_cov(self) -> None:
         directory = self.make_temp_dir()
         real_dir = directory / "llvm" / "bin"
@@ -194,9 +185,6 @@ class CoverageContractTest(unittest.TestCase):
 
                 self.assertEqual(command, [str(llvm_cov), "gcov"])
 
-    @unittest.skipIf(
-        os.name == "nt", "fake executable scripts need a POSIX shell"
-    )
     def test_gcov_command_finds_versioned_llvm_cov_on_path(self) -> None:
         directory = self.make_temp_dir()
         compiler = self.make_executable(directory / "compiler" / "clang++")
@@ -214,9 +202,6 @@ class CoverageContractTest(unittest.TestCase):
 
                 self.assertEqual(command, [str(versioned), "gcov"])
 
-    @unittest.skipIf(
-        os.name == "nt", "fake executable scripts need a POSIX shell"
-    )
     def test_gcov_command_reports_missing_tool(self) -> None:
         directory = self.make_temp_dir()
         compiler = self.make_executable(directory / "g++")
@@ -230,10 +215,10 @@ class CoverageContractTest(unittest.TestCase):
 
         self.assertIn("--gcov-executable", str(context.exception))
 
-    def test_gcov_command_rejects_msvc_and_clang_cl(self) -> None:
+    def test_gcov_command_rejects_other_compilers(self) -> None:
         cases = (
-            ("MSVC", "cl.exe"),
-            ("Clang", "clang-cl.exe"),
+            ("MSVC", "cl"),
+            ("IntelLLVM", "icpx"),
         )
         for compiler_id, compiler_name in cases:
             with self.subTest(compiler_id=compiler_id):
@@ -245,7 +230,7 @@ class CoverageContractTest(unittest.TestCase):
                         search_path="",
                     )
 
-                self.assertIn("GCC and", str(context.exception))
+                self.assertIn("GCC and Clang", str(context.exception))
 
     def test_gcovr_command_uses_project_filters_and_no_threshold(self) -> None:
         gcov_executable = "/usr/lib/llvm-21/bin/llvm-cov gcov"

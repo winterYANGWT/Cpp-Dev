@@ -201,12 +201,6 @@ class CiHardeningContractTest(unittest.TestCase):
 
     def test_actions_do_not_use_node20_releases(self) -> None:
         for line, repo, _sha, version, major in self.actions:
-            self.assertNotIn(
-                "ilammy/msvc-dev-cmd",
-                line,
-                "Expected the maintained step-security/msvc-dev-cmd fork, "
-                f"found {line!r}.",
-            )
             if repo not in ("actions/checkout", "actions/cache"):
                 continue
             self.assertGreaterEqual(

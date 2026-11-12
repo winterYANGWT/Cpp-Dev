@@ -35,14 +35,8 @@ GNU_STYLE_COMPILERS = {
         "CMAKE_CXX_COMPILER_ID": "AppleClang",
         "CMAKE_CXX_COMPILER_FRONTEND_VARIANT": "GNU",
     },
-    # clang++ targeting the MSVC ABI simulates MSVC but takes GNU-style options.
-    "clang++ for the MSVC ABI": {
-        "CMAKE_CXX_COMPILER_ID": "Clang",
-        "CMAKE_CXX_COMPILER_FRONTEND_VARIANT": "GNU",
-        "CMAKE_CXX_SIMULATE_ID": "MSVC",
-    },
 }
-MSVC_STYLE_COMPILERS = {
+UNSUPPORTED_COMPILERS = {
     "MSVC": {
         "CMAKE_CXX_COMPILER_ID": "MSVC",
         "CMAKE_CXX_COMPILER_FRONTEND_VARIANT": "MSVC",
@@ -56,6 +50,10 @@ MSVC_STYLE_COMPILERS = {
         "CMAKE_CXX_COMPILER_ID": "Clang",
         "CMAKE_CXX_COMPILER_FRONTEND_VARIANT": "MSVC",
         "CMAKE_CXX_SIMULATE_ID": "MSVC",
+    },
+    "IntelLLVM": {
+        "CMAKE_CXX_COMPILER_ID": "IntelLLVM",
+        "CMAKE_CXX_COMPILER_FRONTEND_VARIANT": "GNU",
     },
 }
 
@@ -193,34 +191,19 @@ class CompilerOptionsContractTest(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     for option in ("-Wall", "-Wextra", "-Wpedantic", "-Werror"):
                         self.assertIn(option, result.compile_options)
-                    options = result.compile_options
-                    msvc_options = [value for value in options if value.startswith("/")]
-                    self.assertFalse(
-                        msvc_options,
-                        "GNU-style compilers must not get MSVC-style options.",
-                    )
                     if function.endswith("_interface_target"):
                         self.assertIn("-std=c++20", result.compile_options)
 
-    def test_msvc_style_compilers_get_msvc_style_options(self) -> None:
-        for compiler_name, compiler in MSVC_STYLE_COMPILERS.items():
+    def test_unsupported_compilers_fail_to_configure(self) -> None:
+        for compiler_name, compiler in UNSUPPORTED_COMPILERS.items():
             for function in CONFIGURE_FUNCTIONS:
                 with self.subTest(compiler=compiler_name, function=function):
                     result = self.probe(function, compiler)
 
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    for option in ("/W4", "/permissive-", "/WX"):
-                        self.assertIn(option, result.compile_options)
-                    # clang-cl reads -Wall as -Weverything, so no GNU-style
-                    # option may reach an MSVC-style compiler.
-                    options = result.compile_options
-                    gnu_options = [value for value in options if value.startswith("-")]
-                    self.assertFalse(
-                        gnu_options,
-                        "MSVC-style compilers must not get GNU-style options.",
-                    )
-                    if function.endswith("_interface_target"):
-                        self.assertIn("/std:c++20", result.compile_options)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("supports only GCC and Clang", result.stderr)
+                    self.assertEqual(result.compile_options, [])
+                    self.assertEqual(result.link_options, [])
 
     def test_sanitizers_apply_to_gnu_style_compilers(self) -> None:
         cases = {
@@ -240,26 +223,6 @@ class CompilerOptionsContractTest(unittest.TestCase):
                         self.assertIn("-fno-omit-frame-pointer", result.compile_options)
                         self.assertIn(flag, result.link_options)
 
-    def test_sanitizers_warn_for_msvc_style_compilers(self) -> None:
-        for option in ("ENABLE_SANITIZERS", "ENABLE_THREAD_SANITIZER"):
-            for compiler_name, compiler in MSVC_STYLE_COMPILERS.items():
-                for function in CONFIGURE_FUNCTIONS:
-                    with self.subTest(
-                        option=option, compiler=compiler_name, function=function
-                    ):
-                        result = self.probe(function, compiler, **{option: "ON"})
-                        options = (*result.compile_options, *result.link_options)
-                        sanitizer_options = [
-                            value for value in options if value.startswith("-fsanitize")
-                        ]
-
-                        self.assertEqual(result.returncode, 0, result.stderr)
-                        self.assertFalse(sanitizer_options)
-                        self.assertIn(
-                            f"project_name_{option} is only supported",
-                            result.stderr,
-                        )
-
     def test_thread_sanitizer_cannot_be_combined_with_address_sanitizer(self) -> None:
         result = self.probe(
             CONFIGURE_FUNCTIONS[0],
@@ -274,7 +237,7 @@ class CompilerOptionsContractTest(unittest.TestCase):
     def test_example_gets_the_library_warning_options(self) -> None:
         # The example cannot use the library's CMake modules, so it repeats
         # their warning options for each compiler.
-        compilers = {**GNU_STYLE_COMPILERS, **MSVC_STYLE_COMPILERS}
+        compilers = GNU_STYLE_COMPILERS
         for compiler_name, compiler in compilers.items():
             for warnings_as_errors in ("ON", "OFF"):
                 with self.subTest(
@@ -302,23 +265,8 @@ class CompilerOptionsContractTest(unittest.TestCase):
                     self.assertIn("-O0", result.compile_options)
                     self.assertIn("--coverage", result.link_options)
 
-    def test_coverage_warns_for_msvc_style_compilers(self) -> None:
-        for compiler_name, compiler in MSVC_STYLE_COMPILERS.items():
-            for function in CONFIGURE_FUNCTIONS:
-                with self.subTest(compiler=compiler_name, function=function):
-                    result = self.probe(function, compiler, ENABLE_COVERAGE="ON")
-                    options = (*result.compile_options, *result.link_options)
-
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertNotIn("--coverage", options)
-                    self.assertNotIn("-O0", options)
-                    self.assertIn(
-                        "project_name_ENABLE_COVERAGE is only supported",
-                        result.stderr,
-                    )
-
     def test_coverage_is_disabled_by_default(self) -> None:
-        compilers = {**GNU_STYLE_COMPILERS, **MSVC_STYLE_COMPILERS}
+        compilers = GNU_STYLE_COMPILERS
         for compiler_name, compiler in compilers.items():
             for function in CONFIGURE_FUNCTIONS:
                 with self.subTest(compiler=compiler_name, function=function):
@@ -328,17 +276,26 @@ class CompilerOptionsContractTest(unittest.TestCase):
                     self.assertNotIn("--coverage", result.compile_options)
                     self.assertNotIn("--coverage", result.link_options)
 
-    def test_windows_ci_builds_with_clang_cl(self) -> None:
+    def test_linux_ci_builds_with_gcc_and_clang(self) -> None:
         workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        match = re.search(
+            r"^  quality-linux:\n(.*?)(?=^  \S|\Z)",
+            workflow,
+            re.M | re.S,
+        )
+        self.assertIsNotNone(match, "The CI workflow must have a quality-linux job.")
+        job = match.group(1)
 
+        self.assertRegex(job, r"(?m)^          - gcc$")
+        self.assertRegex(job, r"(?m)^          - clang$")
         self.assertRegex(
-            workflow,
-            r"- os: windows-\S+\s+shared: OFF\s+compiler: clang-cl",
+            job, r"(?m)^          - compiler: gcc\n            cxx: g\+\+$"
         )
         self.assertRegex(
-            workflow,
-            r"- os: windows-\S+\s+shared: ON\s+compiler: clang-cl",
+            job, r"(?m)^          - compiler: clang\n            cxx: clang\+\+$"
         )
+        self.assertIn("matrix.compiler == 'clang' && '--clang'", job)
+        self.assertIn("-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}", job)
 
 
 if __name__ == "__main__":

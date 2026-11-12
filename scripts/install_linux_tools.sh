@@ -3,7 +3,7 @@
 # such as the debian:13-slim image that CI uses. Run it as root or as a user
 # with sudo:
 #
-#   scripts/install_linux_tools.sh [--doxygen] [--gcovr] VENV_DIR
+#   scripts/install_linux_tools.sh [--clang] [--doxygen] [--gcovr] VENV_DIR
 #
 # Then add VENV_DIR/bin to PATH. The script has two parts. The distribution
 # packages (compiler, Python, git, GoogleTest) can come from any recent
@@ -18,10 +18,16 @@ doxygen_sha256=0ec2e5b2c3cd82b7106d19cb42d8466450730b8cb7a9e85af712be38bf4523a1
 # gcovr needs Python 3.10 or newer.
 gcovr_version=8.8
 
+with_clang=false
 with_doxygen=false
 with_gcovr=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --clang)
+      # Debian 13's clang package is clang 19.
+      with_clang=true
+      shift
+      ;;
     --doxygen)
       with_doxygen=true
       shift
@@ -31,7 +37,7 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     -*)
-      echo "usage: $0 [--doxygen] [--gcovr] VENV_DIR" >&2
+      echo "usage: $0 [--clang] [--doxygen] [--gcovr] VENV_DIR" >&2
       exit 2
       ;;
     *)
@@ -40,7 +46,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 if [ "$#" -ne 1 ]; then
-  echo "usage: $0 [--doxygen] [--gcovr] VENV_DIR" >&2
+  echo "usage: $0 [--clang] [--doxygen] [--gcovr] VENV_DIR" >&2
   exit 2
 fi
 venv_dir=$1
@@ -52,9 +58,13 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Distribution packages.
+packages="ca-certificates curl g++ git libgtest-dev python3 python3-venv"
+if [ "$with_clang" = true ]; then
+  packages="$packages clang"
+fi
 $sudo env DEBIAN_FRONTEND=noninteractive apt-get update
 $sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-  ca-certificates curl g++ git libgtest-dev python3 python3-venv
+  $packages
 
 # Tools with recommended versions; see docs/tool-versions.md.
 python3 -m venv "$venv_dir"

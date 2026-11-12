@@ -52,7 +52,6 @@ class QualityGeneratorContractTest(unittest.TestCase):
                 package_dir / "universe_answer",
             ),
             mock.patch.object(quality, "run", self.commands.append),
-            mock.patch.object(quality, "macos_sdkroot", lambda: None),
             mock.patch.dict(os.environ, {quality.CMAKE_CONFIGURE_ARGS_ENV: ""}),
         ]
         for patch in patches:
@@ -100,15 +99,13 @@ class QualityGeneratorContractTest(unittest.TestCase):
         os.environ[quality.CMAKE_CONFIGURE_ARGS_ENV] = (
             "-G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_PREFIX_PATH=/deps"
         )
-        with mock.patch.object(quality, "macos_sdkroot", lambda: "/sdk"):
-            library_args = quality.cmake_configure_args()
-            example = quality.package_example_configure_command()
+        library_args = quality.cmake_configure_args()
+        example = quality.package_example_configure_command()
 
         for arg in library_args:
             if not arg.startswith("-DCMAKE_PREFIX_PATH="):
                 with self.subTest(arg=arg):
                     self.assertIn(arg, example)
-        self.assertIn("-DCMAKE_OSX_SYSROOT=/sdk", example)
         self.assertEqual(
             [arg for arg in example if arg.startswith("-DCMAKE_PREFIX_PATH")],
             [f"-DCMAKE_PREFIX_PATH={quality.PACKAGE_INSTALL_DIR};/deps"],

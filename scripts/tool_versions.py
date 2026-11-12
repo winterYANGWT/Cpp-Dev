@@ -22,7 +22,7 @@ REQUIREMENTS_FILE = ROOT_DIR / "scripts" / "tool-requirements.txt"
 PIN_RE = re.compile(r"^([A-Za-z0-9_.-]+)==(\d+)\.(\d+)\.\*$")
 VERSION_RE = re.compile(r"version (\d+\.\d+(?:\.\d+)?)")
 # LLVM tools that are not installed from PyPI share clang-format's version.
-LLVM_TOOLS = {"clang", "clang++", "clang-cl"}
+LLVM_TOOLS = {"clang", "clang++"}
 LLVM_REFERENCE_TOOL = "clang-format"
 
 
@@ -130,7 +130,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         metavar="NAME",
-        help="Also check an LLVM tool from the same release, such as clang-cl.",
+        help="Also check an LLVM tool from the same release, such as clang.",
     )
     return parser.parse_args()
 

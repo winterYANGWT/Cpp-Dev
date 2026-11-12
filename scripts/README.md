@@ -15,8 +15,6 @@ python3 scripts/quality.py package
 python3 scripts/quality.py check
 ```
 
-Use `python` instead of `python3` on platforms where that is the Python 3 executable.
-
 ### Commands
 
 - `format` formats project-owned C++ headers and sources with `clang-format`.
@@ -35,24 +33,13 @@ This is intended for CI and one-off verification of build variants.
 CPP_DEV_CMAKE_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
 ```
 
-`quality.py` reads `build/quality/compile_commands.json` for the strict C++20 check and for `clang-tidy`. Ninja and Makefile generators write it; Visual Studio and Xcode generators do not. Without it, `test` and `package` print a warning and skip the strict C++20 check, while `tidy` and `check` stop right after configuring. Add `-G Ninja` to `CPP_DEV_CMAKE_CONFIGURE_ARGS` to use Ninja, and remove `build/quality` when switching generators.
+`quality.py` reads `build/quality/compile_commands.json` for the strict C++20 check and for `clang-tidy`. Ninja and Makefile generators write it. Without it, `test` and `package` print a warning and skip the strict C++20 check, while `tidy` and `check` stop right after configuring. Add `-G Ninja` to `CPP_DEV_CMAKE_CONFIGURE_ARGS` to use Ninja, and remove `build/quality` when switching generators.
 
-On macOS, `quality.py` automatically passes the active macOS SDK as `CMAKE_OSX_SYSROOT` when `xcrun` is available. You can set `SDKROOT` yourself to pin the SDK used by CMake and `clang-tidy`:
+To check the build with another compiler, pass it in the same variable, as the CI quality job does for GCC and Clang. Remove `build/quality` first: a CMake build directory cannot switch compilers.
 
 ```sh
-export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+CPP_DEV_CMAKE_CONFIGURE_ARGS="-DCMAKE_CXX_COMPILER=clang++" python3 scripts/quality.py check
 ```
-
-On Windows with vcpkg-provided GTest, run from an MSVC environment and pin CMake to `cl`:
-
-```powershell
-$env:CC = "cl"
-$env:CXX = "cl"
-$env:CPP_DEV_CMAKE_CONFIGURE_ARGS = "-G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows"
-python scripts/quality.py check
-```
-
-To check the clang-cl build, replace `cl` with `clang-cl` in `CC`, `CXX`, and the compiler arguments. CI runs both compilers on Windows.
 
 The template does not fetch GoogleTest automatically. If `find_package(GTest CONFIG)` fails, install GoogleTest with your preferred package manager or build it yourself, then rerun CMake with `CMAKE_PREFIX_PATH` or `GTest_DIR` pointing at the package config location.
 
@@ -64,8 +51,8 @@ the `Debug` configuration of the current quality build under
 prefix, builds the downstream `universe_answer_cli` executable, then runs CTest
 for the example project.
 
-The example is configured with the same `CPP_DEV_CMAKE_CONFIGURE_ARGS` and macOS
-SDK as the library, so both use the same generator, compiler, and toolchain. A
+The example is configured with the same `CPP_DEV_CMAKE_CONFIGURE_ARGS` as the
+library, so both use the same generator, compiler, and toolchain. A
 `CMAKE_PREFIX_PATH` in those arguments is appended after the install prefix.
 
 The package step also turns on `universe_answer_WARNINGS_AS_ERRORS` and
@@ -109,7 +96,7 @@ python3 scripts/coverage.py --gcov-executable "xcrun llvm-cov gcov"
 
 The script configures, builds, and tests the `coverage` preset in `build/coverage`, which compiles with `--coverage -O0`. It deletes the `.gcda` counters after the build and before CTest, because the build runs the test executable to list the tests and earlier runs leave counters behind. gcovr then writes `coverage.txt` and an HTML report with one page per file to `build/coverage-report/`, and prints a summary. The report covers only files under `src/` and `include/`; files that no test executable links are listed with 0%. `CPP_DEV_CMAKE_CONFIGURE_ARGS` works as for `quality.py`. To switch compilers, remove `build/coverage` first.
 
-gcov data is specific to the compiler: GCC's `gcov` cannot read Clang's files, and `llvm-cov gcov` cannot read GCC's. The script asks CMake for the compiler and picks the matching tool: `gcov-N` or `gcov` for GCC N, and for Clang the `llvm-cov` next to the real compiler, then `llvm-cov-N` or `llvm-cov` on `PATH`. If it finds none, for example with AppleClang, pass the command with `--gcov-executable`. MSVC and clang-cl are not supported.
+gcov data is specific to the compiler: GCC's `gcov` cannot read Clang's files, and `llvm-cov gcov` cannot read GCC's. The script asks CMake for the compiler and picks the matching tool: `gcov-N` or `gcov` for GCC N, and for Clang the `llvm-cov` next to the real compiler, then `llvm-cov-N` or `llvm-cov` on `PATH`. If it finds none, pass the command with `--gcov-executable`. Other compilers are not supported.
 
 Coverage is advisory. It sets no minimum, `quality.py check` does not run it, and the `Coverage` CI job fails only when the build or a test fails. That job uploads `build/coverage-report/` as the `coverage-report` artifact of the run.
 
@@ -122,15 +109,15 @@ Coverage is advisory. It sets no minimum, `quality.py check` does not run it, an
 ```sh
 python3 scripts/tool_versions.py
 python3 scripts/tool_versions.py --strict
-python3 scripts/tool_versions.py --strict --tool clang-cl
+python3 scripts/tool_versions.py --strict --tool clang
 ```
 
-Without `--strict`, a different or missing tool only prints a warning. CI uses `--strict`, which fails instead. `--tool` also checks another LLVM tool, such as `clang-cl`, against the recommended LLVM version. `quality.py` does not check versions itself. When a tool it runs is not on `PATH`, it prints one error line that names the tool and points to `docs/tool-versions.md`, then exits with status 1.
+Without `--strict`, a different or missing tool only prints a warning. CI uses `--strict`, which fails instead. `--tool` also checks another LLVM tool, such as `clang`, against the recommended LLVM version; CI does not use it, because its Clang rows build with Debian's clang 19. `quality.py` does not check versions itself. When a tool it runs is not on `PATH`, it prints one error line that names the tool and points to `docs/tool-versions.md`, then exits with status 1.
 
-`install_linux_tools.sh` sets up a Debian or Ubuntu system, such as the `debian:13-slim` image that the Linux CI jobs use. It installs a compiler, Python, git, and GoogleTest with `apt-get`, then creates a virtual environment and installs `tool-requirements.txt` into it. With `--doxygen`, it also installs the pinned Doxygen release after checking its SHA-256, and with `--gcovr`, the pinned gcovr release from PyPI. Run it as root or with `sudo`, then add the environment's `bin` directory to `PATH`:
+`install_linux_tools.sh` sets up a Debian or Ubuntu system, such as the `debian:13-slim` image that the CI jobs use. It installs GCC, Python, git, and GoogleTest with `apt-get`, then creates a virtual environment and installs `tool-requirements.txt` into it. With `--clang`, it also installs Debian's or Ubuntu's clang; with `--doxygen`, the pinned Doxygen release after checking its SHA-256, and with `--gcovr`, the pinned gcovr release from PyPI. Run it as root or with `sudo`, then add the environment's `bin` directory to `PATH`:
 
 ```sh
-sh scripts/install_linux_tools.sh [--doxygen] [--gcovr] /opt/tools
+sh scripts/install_linux_tools.sh [--clang] [--doxygen] [--gcovr] /opt/tools
 export PATH="/opt/tools/bin:$PATH"
 ```
 
@@ -154,11 +141,11 @@ Scripts named `*_test.py` pin template engineering contracts that the C++ test s
 for test in scripts/*_test.py; do python3 "$test"; done
 ```
 
-- `ci_cache_contract_test.py` verifies that the `quality` CI job caches vcpkg's binary packages and LLVM for the clang-cl rows in the runner's temporary directory, that the LLVM cache uses the same version as the Chocolatey install, which only runs on a cache miss, that both cases put the cached LLVM on `PATH`, and that a step checks that CMake did not pick tools from another LLVM.
+- `ci_cache_contract_test.py` verifies that the CI workflow does not use ccache or sccache.
 - `ci_hardening_contract_test.py` verifies that the CI workflow gives every job a read-only `GITHUB_TOKEN` and cancels an older run for the same branch or pull request, that every action is pinned to a full commit SHA with its release in a comment and uses one release throughout, that no action uses a release that runs on Node.js 20, and that every job checks out the repository once without keeping the token.
 - `cmake_minimum_contract_test.py` verifies that every `cmake_minimum_required` and the `cmakeMinimumRequired` of `CMakePresets.json` declare the recommended CMake version from `tool-requirements.txt` as the minimum, and that `README.md` and `docs/tool-versions.md` state the same version. It also verifies that the preset file format and the CMake features the build uses, such as `cmake -E copy -t`, need no newer CMake than the declared minimum.
 - `community_health_contract_test.py` verifies that the contributing guide, security policy, changelog, issue forms, and pull request template exist with their key sections, that the README links to them, and that their relative links resolve.
-- `compiler_options_contract_test.py` loads the CMake option and compiler modules in CMake script mode, with the target commands replaced by stand-ins that record their arguments. It verifies that MSVC and clang-cl get MSVC-style options, that GCC, Clang, AppleClang, and clang++ for the MSVC ABI get GNU-style options, that sanitizers and coverage apply only to GNU-style compilers, that coverage is off by default, that ThreadSanitizer cannot be combined with AddressSanitizer, and that Windows CI builds with clang-cl. It also runs the example's `CMakeLists.txt` the same way and verifies that the example gets the library's warning options for each compiler. It is skipped when `cmake` is not installed.
+- `compiler_options_contract_test.py` loads the CMake option and compiler modules in CMake script mode, with the target commands replaced by stand-ins that record their arguments. It verifies that GCC, Clang, and AppleClang get GNU-style warning, sanitizer, and coverage options, that MSVC, clang-cl, and other compilers stop the configure step with an error, that coverage is off by default, that ThreadSanitizer cannot be combined with AddressSanitizer, and that the CI quality job builds with both GCC and Clang. It also runs the example's `CMakeLists.txt` the same way and verifies that the example gets the library's warning options for each compiler. It is skipped when `cmake` is not installed.
 - `coverage_contract_test.py` verifies that coverage is off by default and only the `coverage` presets turn it on, that `coverage.py` picks the gcov tool that matches the compiler, deletes the counters left by the build before it runs CTest, and reports only `src/` and `include/` without a threshold, and that a missing gcovr produces one error line before the build. It also verifies that `quality.py` does not run coverage, that the `Coverage` CI job installs gcovr and uploads the report without a threshold or an external service, and that the pinned gcovr version matches `docs/tool-versions.md`.
 - `docs_contract_test.py` loads the CMake option and docs modules in CMake script mode, with `find_package` and `add_custom_target` replaced by stand-ins, and checks the generated Doxyfile: Doxygen reads `include/`, writes only HTML, warns about undocumented namespaces and symbols, and fails on warnings when warnings are errors. It also verifies that the documentation is opt-in, that the `docs` presets build only the documentation target, that CMake warns about Doxygen before 1.13, and that CI generates the documentation on Ubuntu 26.04. When `doxygen` is installed, it runs Doxygen on the public headers and verifies that undocumented API fails. It is skipped when `cmake` is not installed.
 - `gitignore_contract_test.py` verifies that user-local files such as `CMakeUserPresets.json` are ignored. It is skipped outside a git work tree.
@@ -172,7 +159,7 @@ for test in scripts/*_test.py; do python3 "$test"; done
 - `template_version_contract_test.py` verifies that the root `TEMPLATE_VERSION` file contains exactly one `vX.Y.Z` line.
 - `text_policy_contract_test.py` verifies that `.editorconfig` and `.gitattributes` keep the LF line ending policy, with CRLF for Windows batch scripts and common binary formats marked as binary, and that tracked text files are stored with LF. The `.gitattributes` and index checks are skipped outside a git work tree.
 - `tidy_scope_contract_test.py` verifies that `HeaderFilterRegex` in `.clang-tidy` matches every C++ header and source suffix that `quality.py` collects under `include/`, `src/`, `test/`, and `tests/`, with relative and absolute paths, so private headers in `src/` are checked.
-- `tool_versions_contract_test.py` verifies that `tool-requirements.txt` pins only major.minor, with the same LLVM version for clang-format and clang-tidy, and that `docs/tool-versions.md` records the same versions as recommendations. It also verifies that every CI job installs and checks the recommended versions with `tool_versions.py --strict`, that CI installs no tool without a version and uses no `-latest` runner label, that clang-cl comes from the recommended LLVM release, and that all Linux jobs run in the same container image. It checks how `tool_versions.py` parses version output and that it only warns without `--strict`. It also runs `quality.py format --check` with an empty `PATH` and verifies that a missing tool produces one readable error and exit status 1 instead of a traceback, while other missing files are not reported as missing tools.
+- `tool_versions_contract_test.py` verifies that `tool-requirements.txt` pins only major.minor, with the same LLVM version for clang-format and clang-tidy, and that `docs/tool-versions.md` records the same versions as recommendations. It also verifies that every CI job installs and checks the recommended versions with `tool_versions.py --strict`, that CI installs no tool without a version and uses no `-latest` runner label, and that every job runs on an Ubuntu runner in the same container image. It checks how `tool_versions.py` parses version output and that it only warns without `--strict`. It also runs `quality.py format --check` with an empty `PATH` and verifies that a missing tool produces one readable error and exit status 1 instead of a traceback, while other missing files are not reported as missing tools.
 
 ## `rename_project.py`
 

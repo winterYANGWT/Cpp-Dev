@@ -25,18 +25,16 @@ README = ROOT_DIR / "README.md"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 DOC_TOOL_NAMES = {"clang-format": "clang-format", "clang-tidy": "clang-tidy", "cmake": "CMake"}
 UNPINNED_INSTALL_RE = re.compile(
-    r"(apt-get install|brew install)[^\n]*\b(clang-format|clang-tidy|cmake|llvm|ninja)\b"
+    r"apt-get install[^\n]*\b(clang-format|clang-tidy|cmake|llvm|ninja)\b"
 )
-CHOCO_LLVM_RE = re.compile(r"choco \w+ llvm\b[^\n]*")
 
 # `--version` output of the tool builds that the script has to understand.
 VERSION_OUTPUTS = {
     "clang-format version 21.1.8": "21.1.8",
     "Ubuntu clang-format version 21.1.8 (1)": "21.1.8",
-    "Homebrew clang-format version 21.1.8": "21.1.8",
     "LLVM (http://llvm.org/):\n  LLVM version 21.1.6\n  Optimized build.": "21.1.6",
     "Ubuntu LLVM version 21.1.8\n  Optimized build.": "21.1.8",
-    "clang version 21.1.8\nTarget: x86_64-pc-windows-msvc": "21.1.8",
+    "Debian clang version 19.1.7 (3+b1)\nTarget: x86_64-pc-linux-gnu": "19.1.7",
     "cmake version 4.2.3\n\nCMake suite maintained and supported by Kitware": "4.2.3",
 }
 
@@ -100,28 +98,13 @@ class ToolVersionsContractTest(unittest.TestCase):
     def test_ci_installs_no_unpinned_tools(self) -> None:
         self.assertIsNone(UNPINNED_INSTALL_RE.search(self.workflow))
         self.assertNotIn("-latest", self.workflow)
-        major, minor = self.recommended["clang-format"]
-        choco_lines = CHOCO_LLVM_RE.findall(self.workflow)
-        self.assertTrue(choco_lines)
-        for line in choco_lines:
-            with self.subTest(line=line):
-                self.assertRegex(line, rf"--version={major}\.{minor}\.\d+\b")
 
-    def test_clang_cl_rows_check_the_clang_cl_version(self) -> None:
-        quality = self.jobs["quality"]
-
-        self.assertIn("matrix.compiler == 'clang-cl' && '--tool clang-cl'", quality)
-        self.assertIn("if: matrix.compiler == 'clang-cl'", quality)
-
-    def test_linux_jobs_share_one_container_image(self) -> None:
-        linux_jobs = {
-            name: job
-            for name, job in self.jobs.items()
-            if re.search(r"^    runs-on: ubuntu-", job, re.M)
-        }
-        images = {name: container_image(job) for name, job in linux_jobs.items()}
-
-        self.assertGreaterEqual(len(linux_jobs), 5)
+    def test_every_job_runs_in_one_linux_container_image(self) -> None:
+        self.assertTrue(self.jobs)
+        images = {name: container_image(job) for name, job in self.jobs.items()}
+        for name, job in self.jobs.items():
+            with self.subTest(job=name):
+                self.assertRegex(job, r"(?m)^    runs-on: ubuntu-")
         self.assertEqual(len(set(images.values())), 1, images)
         image = next(iter(images.values()))
         self.assertIsNotNone(image)
@@ -199,16 +182,16 @@ class ToolVersionsContractTest(unittest.TestCase):
                 self.assertEqual(result, returncode)
                 self.assertIn("cmake is not installed or not on PATH.", output)
 
-    def test_clang_cl_is_expected_to_match_clang_format(self) -> None:
+    def test_clang_is_expected_to_match_clang_format(self) -> None:
         installed = self.recommended_installed()
-        installed["clang-cl"] = "99.0.1"
+        installed["clang"] = "99.0.1"
 
-        returncode, output = self.check(installed, True, "clang-cl")
+        returncode, output = self.check(installed, True, "clang")
         self.assertEqual(returncode, 1)
-        self.assertIn("clang-cl 99.0.1", output)
+        self.assertIn("clang 99.0.1", output)
 
-        installed["clang-cl"] = installed["clang-format"]
-        self.assertEqual(self.check(installed, True, "clang-cl")[0], 0)
+        installed["clang"] = installed["clang-format"]
+        self.assertEqual(self.check(installed, True, "clang")[0], 0)
         with self.assertRaises(SystemExit):
             self.check(installed, True, "gcc")
 
@@ -235,14 +218,13 @@ class QualityMissingToolContractTest(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
     def test_clang_tidy_missing_tool_is_converted(self) -> None:
-        with mock.patch.object(quality, "macos_sdkroot", lambda: None):
-            with mock.patch.object(
-                quality.subprocess,
-                "run",
-                side_effect=FileNotFoundError(2, "No such file or directory", "clang-tidy"),
-            ):
-                with self.assertRaises(quality.ToolNotFoundError) as context:
-                    quality.run_clang_tidy(["clang-tidy", "--quiet"])
+        with mock.patch.object(
+            quality.subprocess,
+            "run",
+            side_effect=FileNotFoundError(2, "No such file or directory", "clang-tidy"),
+        ):
+            with self.assertRaises(quality.ToolNotFoundError) as context:
+                quality.run_clang_tidy(["clang-tidy", "--quiet"])
 
         self.assertEqual(context.exception.tool, "clang-tidy")
 

@@ -31,13 +31,13 @@ def gcov_command(
 ) -> list[str]:
     """Return the gcov command that matches the configured C++ compiler."""
     compiler = Path(compiler_path)
-    if compiler.name.startswith("clang-cl") or compiler_id not in (
+    if compiler_id not in (
         "GNU",
         "Clang",
         "AppleClang",
     ):
         raise CoverageError(
-            "coverage is only supported with GCC and GNU-style Clang, "
+            "coverage is only supported with GCC and Clang, "
             f"not with {compiler_id} ({compiler_path})"
         )
 

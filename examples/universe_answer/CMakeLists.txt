@@ -26,27 +26,10 @@ set_target_properties(universe_answer_cli PROPERTIES
 )
 
 # The example builds against the installed package only, so it sets its own
-# warning options instead of using the library's CMake modules. clang-cl takes
-# MSVC-style options; the ID check covers CMake before 3.26, which leaves
-# CMAKE_CXX_COMPILER_FRONTEND_VARIANT empty for MSVC.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
-    OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-  target_compile_options(universe_answer_cli PRIVATE /W4 /permissive-)
-  if(universe_answer_WARNINGS_AS_ERRORS)
-    target_compile_options(universe_answer_cli PRIVATE /WX)
-  endif()
-else()
-  target_compile_options(universe_answer_cli PRIVATE -Wall -Wextra -Wpedantic)
-  if(universe_answer_WARNINGS_AS_ERRORS)
-    target_compile_options(universe_answer_cli PRIVATE -Werror)
-  endif()
-endif()
-
-if(WIN32)
-  add_custom_command(TARGET universe_answer_cli POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:universe_answer_cli> $<TARGET_RUNTIME_DLLS:universe_answer_cli>
-    COMMAND_EXPAND_LISTS
-  )
+# warning options instead of using the library's CMake modules.
+target_compile_options(universe_answer_cli PRIVATE -Wall -Wextra -Wpedantic)
+if(universe_answer_WARNINGS_AS_ERRORS)
+  target_compile_options(universe_answer_cli PRIVATE -Werror)
 endif()
 
 enable_testing()

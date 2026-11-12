@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 4.2)
 
-project(project_name VERSION 0.1.0 LANGUAGES CXX)
+project(mylib VERSION 0.1.0 LANGUAGES CXX)
 
 # The template does not use C++20 modules. Module scanning would add GCC-only
 # flags to compile_commands.json, which clang-tidy rejects.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
-include(cmake/project_nameOptions.cmake)
-include(cmake/project_nameCompiler.cmake)
-include(cmake/project_nameDocs.cmake)
-include(cmake/project_nameInstall.cmake)
+include(cmake/mylibOptions.cmake)
+include(cmake/mylibCompiler.cmake)
+include(cmake/mylibDocs.cmake)
+include(cmake/mylibInstall.cmake)
 include(GenerateExportHeader)
 
 add_library(${PROJECT_NAME}
@@ -22,7 +22,7 @@ target_compile_features(${PROJECT_NAME}
     cxx_std_20
 )
 
-project_name_configure_cxx_target(${PROJECT_NAME})
+mylib_configure_cxx_target(${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -54,9 +54,9 @@ if(${PROJECT_NAME}_BUILD_TESTS)
 endif()
 
 if(${PROJECT_NAME}_INSTALL)
-  project_name_install_package(${PROJECT_NAME})
+  mylib_install_package(${PROJECT_NAME})
 endif()
 
 if(${PROJECT_NAME}_BUILD_DOCS)
-  project_name_add_docs_target()
+  mylib_add_docs_target()
 endif()

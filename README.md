@@ -1,6 +1,6 @@
-# CPP-DEV
+# cpp-library-template
 
-`CPP-DEV` is a baseline template for C++ library projects. It defines the structure, naming, formatting, static analysis, test framework, and CMake package contract expected by new libraries.
+`cpp-library-template` is a baseline template for C++ library projects. It defines the structure, naming, formatting, static analysis, test framework, and CMake package contract expected by new libraries.
 
 The template should stay small. Individual libraries may add their own dependencies, modules, examples, tools, and platform-specific build logic, but they should keep the public layout and package interface consistent.
 
@@ -85,11 +85,11 @@ Project names use lowercase English words separated by underscores.
 
 Examples of the naming style:
 
-- Project name: `{project_name}`
+- Project name: `mylib`
 - Optional subproject name: `{optional_subproject}`
-- CMake package name: `{project_name}`
-- Main target name: `{project_name}`
-- Exported target name: `{project_name}::{project_name}`
+- CMake package name: `mylib`
+- Main target name: `mylib`
+- Exported target name: `mylib::mylib`
 
 Do not use PascalCase project names for new libraries.
 
@@ -102,7 +102,7 @@ Compiled libraries should use this structure:
 ├── CMakeLists.txt
 ├── cmake/
 ├── include/
-│   └── {project_name}/
+│   └── mylib/
 │       └── {optional_subproject}/
 ├── src/
 └── test/
@@ -110,13 +110,13 @@ Compiled libraries should use this structure:
 
 Rules:
 
-- Public headers must live under `include/{project_name}/...`.
-- Optional public submodules must live under `include/{project_name}/{optional_subproject}/...`.
+- Public headers must live under `include/mylib/...`.
+- Optional public submodules must live under `include/mylib/{optional_subproject}/...`.
 - Implementation files belong in `src/` and should use the `.cc` extension.
 - Test files belong in `test/`; use the singular directory name and the `.cc` extension for C++ test sources.
 - Public headers should not be placed directly under the root of `include/`.
 
-Header-only libraries may remove `src/` and use an `INTERFACE` library target instead of a compiled target. Keep the same package name, alias target, install-tree include directory, and `find_package({project_name} CONFIG REQUIRED)` contract. Use `project_name_configure_cxx_interface_target(${PROJECT_NAME})` for the main header-only target; concrete test or tool executables should still use `project_name_configure_cxx_target(...)`.
+Header-only libraries may remove `src/` and use an `INTERFACE` library target instead of a compiled target. Keep the same package name, alias target, install-tree include directory, and `find_package(mylib CONFIG REQUIRED)` contract. Use `mylib_configure_cxx_interface_target(${PROJECT_NAME})` for the main header-only target; concrete test or tool executables should still use `mylib_configure_cxx_target(...)`.
 
 ## C++ Style
 
@@ -128,27 +128,27 @@ Use Doxygen comments for public API documentation. Prefer `/** ... */` block com
 
 Document each public namespace as well as its members, because Doxygen does not check the members of an undocumented namespace. Wrap implementation details in public headers, such as an `internal` namespace, in `/** @cond INTERNAL */` and `/** @endcond */` to leave them out of the documentation and its checks.
 
-Use standard include guards for public headers. Do not use non-standard pragma-based header guards. Guard names should follow the installed include path, be uppercase, and end in `_H_`, such as `PROJECT_NAME_PROJECT_NAME_H_` for `include/project_name/project_name.h`.
+Use standard include guards for public headers. Do not use non-standard pragma-based header guards. Guard names should follow the installed include path, be uppercase, and end in `_H_`, such as `MYLIB_MYLIB_H_` for `include/mylib/mylib.h`.
 
 ## CMake Contract
 
-Every library should use CMake `4.2` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `project_name_configure_cxx_interface_target(...)`.
+Every library should use CMake `4.2` or newer and build as strict C++20. Project-owned compiled C++ targets must set `CXX_STANDARD 20`, `CXX_STANDARD_REQUIRED ON`, and `CXX_EXTENSIONS OFF` so CMake emits `-std=c++20` rather than a compiler-extension mode such as `-std=gnu++20`. Header-only `INTERFACE` targets should use `target_compile_features(... INTERFACE cxx_std_20)` through `mylib_configure_cxx_interface_target(...)`.
 
 C++20 module scanning is off: the root `CMakeLists.txt` and the example's `CMakeLists.txt` set `CMAKE_CXX_SCAN_FOR_MODULES` to `OFF` right after `project()`, before any target is created. The template does not use modules, and since CMake 3.28 (policy CMP0155), scanning is on by default for C++20 targets; with GCC it adds flags to `compile_commands.json` that `clang-tidy` cannot read. A project that adopts modules can turn scanning back on, but should then run `clang-tidy` against a Clang build.
 
 The configure functions accept GCC and Clang and give them `-Wall -Wextra -Wpedantic`, plus `-Werror` when warnings are errors. Any other compiler, and any compiler that takes MSVC-style options, such as MSVC and clang-cl, stops the configure step with an error. AppleClang takes the same options as Clang and is accepted, but CI does not test it.
 
-The root CMake project should define one main library target named `{project_name}` and an alias target named `{project_name}::{project_name}`. The alias target is the stable interface used by tests, examples, and downstream consumers.
+The root CMake project should define one main library target named `mylib` and an alias target named `mylib::mylib`. The alias target is the stable interface used by tests, examples, and downstream consumers.
 
 The template CMake files should prefer `${PROJECT_NAME}` for repeated project-dependent names, including targets, options, exported target files, config files, and install destinations. After creating a new library, changing the root `project(...)` name should update most generated CMake names automatically.
 
 Each library target must expose both build-tree and install-tree include paths. The build interface points at the source tree `include/` directory and the generated export-header include directory. The install interface points at the installed include directory.
 
-Compiled libraries must generate and install an export header named `<{project_name}/export.h>`. Public API declarations exported from a shared library should use the generated `{PROJECT_NAME}_EXPORT` macro. Targets should use hidden default visibility so shared-library exports are intentional.
+Compiled libraries must generate and install an export header named `<mylib/export.h>`. Public API declarations exported from a shared library should use the generated `MYLIB_EXPORT` macro. Targets should use hidden default visibility so shared-library exports are intentional.
 
-Install support is required by default. The install option should be named `{project_name}_INSTALL`, and its default should follow whether the project is the top-level CMake project. This keeps standalone builds installable while avoiding unwanted installs when the library is included through `add_subdirectory`.
+Install support is required by default. The install option should be named `mylib_INSTALL`, and its default should follow whether the project is the top-level CMake project. This keeps standalone builds installable while avoiding unwanted installs when the library is included through `add_subdirectory`.
 
-Installed libraries must be consumable through CMake package config mode. A downstream project should be able to use `find_package({project_name} CONFIG REQUIRED)` and link against `{project_name}::{project_name}`.
+Installed libraries must be consumable through CMake package config mode. A downstream project should be able to use `find_package(mylib CONFIG REQUIRED)` and link against `mylib::mylib`.
 
 ## Testing
 
@@ -170,12 +170,12 @@ The `scripts/` directory provides the standard local quality gate:
 python3 scripts/quality.py check
 ```
 
-The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units for the public headers, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `CPP_DEV_CMAKE_CONFIGURE_ARGS` override.
+The quality runner formats project-owned C++ files, verifies strict C++20 compile flags, runs CTest through the `quality` CMake preset, installs the library, builds the installed-package example, and runs `clang-tidy` on real source translation units, generated header smoke translation units for the public headers, and the example's sources. See [scripts/README.md](scripts/README.md) for the full command list, file scope rules, header-check strategy, and `QUALITY_CMAKE_ARGS` override.
 
 Useful build-variant checks:
 
 ```sh
-CPP_DEV_CMAKE_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
+QUALITY_CMAKE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
 cmake --preset asan-ubsan
 cmake --build --preset asan-ubsan
 ctest --preset asan-ubsan
@@ -186,7 +186,7 @@ ctest --preset tsan
 
 The `asan-ubsan` preset compiles with `-fno-sanitize-recover=all`, so any UndefinedBehaviorSanitizer report fails the test instead of only printing a diagnostic.
 
-The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `project_name_ENABLE_SANITIZERS` and `project_name_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping` or `incompatible memory layout`, the kernel's mmap randomization breaks its memory layout. Run the build and the tests under `setarch "$(uname -m)" -R`, which turns randomization off for them and does not need root, as the CI job does. The build needs it too, because it runs the test executable to list the tests. In a Docker container, `setarch` also needs `--security-opt seccomp=unconfined`. Lowering the randomization for the whole system with `sudo sysctl vm.mmap_rnd_bits=28` works as well.
+The `tsan` preset builds with ThreadSanitizer, which makes a test fail when it reports a data race. ThreadSanitizer cannot be combined with AddressSanitizer, so configuring with both `mylib_ENABLE_SANITIZERS` and `mylib_ENABLE_THREAD_SANITIZER` turned on fails. If ThreadSanitizer aborts with `unexpected memory mapping` or `incompatible memory layout`, the kernel's mmap randomization breaks its memory layout. Run the build and the tests under `setarch "$(uname -m)" -R`, which turns randomization off for them and does not need root, as the CI job does. The build needs it too, because it runs the test executable to list the tests. In a Docker container, `setarch` also needs `--security-opt seccomp=unconfined`. Lowering the randomization for the whole system with `sudo sysctl vm.mmap_rnd_bits=28` works as well.
 
 To see which lines of `src/` and `include/` the tests run, generate a coverage report. It needs gcovr; see [Tool Versions](docs/tool-versions.md).
 
@@ -211,19 +211,19 @@ The output is written to `build/docs/doxygen/html/index.html`. The preset treats
 
 Use Doxygen 1.13 or newer. Older versions do not report undocumented namespaces and therefore skip the checks for their members; CMake prints a warning when it finds one. CI generates the documentation on Ubuntu 26.04, which provides Doxygen 1.15.
 
-To generate the documentation from another build tree, configure it with `-Dproject_name_BUILD_DOCS=ON` and build the `project_name_docs` target. Doxygen warnings are errors there only when `project_name_WARNINGS_AS_ERRORS` is also ON.
+To generate the documentation from another build tree, configure it with `-Dmylib_BUILD_DOCS=ON` and build the `mylib_docs` target. Doxygen warnings are errors there only when `mylib_WARNINGS_AS_ERRORS` is also ON.
 
 ## Project Rename Workflow
 
 After generating a repository from this template, rename the placeholder project before adding real code.
 
-Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script updates file contents, updates generated export macro references such as `PROJECT_NAME_EXPORT`, updates template header guards such as `PROJECT_NAME_PROJECT_NAME_H_`, and renames placeholder paths such as the public include directory, source file, test file, and package config template.
+Use `scripts/rename_project.py` with no argument to infer the project name from the generated repository directory. Use an explicit lowercase snake_case argument when the repository directory is not the desired CMake package name. The script replaces the template's placeholder name, in lowercase and in uppercase, in file contents and in file and directory names: the namespace, the CMake package and targets, the export macro, the header guards, and paths such as the public include directory. CMake's own `${PROJECT_NAME}` variable is not touched.
 
 Run the script in dry-run mode first to inspect planned changes. Then run it without dry-run, replace the template README with the new library's own README, and finish by running the quality gate. See [scripts/README.md](scripts/README.md) for script usage details.
 
 ## Template Version
 
-The root `TEMPLATE_VERSION` file records a CPP-DEV template version as a single `vX.Y.Z` line, such as `v0.1.0`.
+The root `TEMPLATE_VERSION` file records a cpp-library-template version as a single `vX.Y.Z` line, such as `v0.1.0`.
 
 - In the template repository, it is the template's own release version. Update it for every template release, and tag the release commit with the same `vX.Y.Z` value.
 - In a generated project, it records the template version the project was created from or last synchronized with. Keep the file after renaming, and update it only when you adopt changes from a newer template release.
@@ -238,8 +238,8 @@ Installing a compiled library should install:
 
 - The compiled library target.
 - Public headers from `include/`.
-- The generated export header under `include/{project_name}/export.h`.
-- Exported CMake targets under the package namespace `{project_name}::`.
+- The generated export header under `include/mylib/export.h`.
+- Exported CMake targets under the package namespace `mylib::`.
 - A package config file for `find_package`.
 - A package version file matching the project version.
 
@@ -251,11 +251,11 @@ The shared library's `SOVERSION` is the `major.minor` of the project version, be
 
 | Project version | Library file | SONAME |
 | --- | --- | --- |
-| `0.1.0` | `lib{project_name}.so.0.1.0` | `lib{project_name}.so.0.1` |
-| `0.1.1` | `lib{project_name}.so.0.1.1` | `lib{project_name}.so.0.1` |
-| `1.2.3` | `lib{project_name}.so.1.2.3` | `lib{project_name}.so.1.2` |
+| `0.1.0` | `libmylib.so.0.1.0` | `libmylib.so.0.1` |
+| `0.1.1` | `libmylib.so.0.1.1` | `libmylib.so.0.1` |
+| `1.2.3` | `libmylib.so.1.2.3` | `libmylib.so.1.2` |
 
-The package version file uses `SameMinorVersion` for the same reason: `find_package({project_name} 0.1)` accepts 0.1.x releases, and rejects 0.2 and 1.0.
+The package version file uses `SameMinorVersion` for the same reason: `find_package(mylib 0.1)` accepts 0.1.x releases, and rejects 0.2 and 1.0.
 
 C++ makes ABI breaks easy to introduce, for example by adding a data member to a class or changing an inline function, and the template does not check the ABI. A library that adds an ABI check can relax this after 1.0 to a `major` `SOVERSION` and `SameMajorVersion`.
 
@@ -267,6 +267,6 @@ New libraries created from this template use GPL-3.0 by default. The template re
 
 - Keep this template as a shared starting point, not a complete application framework.
 - Add project-specific dependencies only in the project that needs them.
-- Keep public API headers under `include/{project_name}/...`.
+- Keep public API headers under `include/mylib/...`.
 - Treat `src/` as implementation detail.
 - Keep `.clang-format` and `.clang-tidy` inherited from this template unless a project has a clear reason to override them.

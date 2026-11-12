@@ -7,7 +7,7 @@ template's public package contract.
 
 `examples/universe_answer` is a minimal installed-package consumer. It builds a
 single `universe_answer_cli` executable that links the installed
-`{project_name}::{project_name}` target, calls `{project_name}::Answer()`, and
+`mylib::mylib` target, calls `mylib::Answer()`, and
 prints:
 
 ```text

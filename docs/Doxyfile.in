@@ -1,5 +1,5 @@
 # Doxygen configuration for the public API in include/. CMake fills in the
-# variables when project_name_BUILD_DOCS is ON. Settings not listed here keep
+# variables when mylib_BUILD_DOCS is ON. Settings not listed here keep
 # Doxygen's defaults.
 
 PROJECT_NAME           = "@PROJECT_NAME@"

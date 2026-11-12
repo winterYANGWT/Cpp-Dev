@@ -1,7 +1,7 @@
 # Adds the ${PROJECT_NAME}_docs target, which runs Doxygen on the public headers
 # and writes HTML to ${PROJECT_BINARY_DIR}/doxygen/html. Doxygen warnings fail
 # the target when ${PROJECT_NAME}_WARNINGS_AS_ERRORS is ON.
-function(project_name_add_docs_target)
+function(mylib_add_docs_target)
   find_package(Doxygen REQUIRED COMPONENTS doxygen)
   if(DOXYGEN_VERSION VERSION_LESS 1.13)
     message(WARNING

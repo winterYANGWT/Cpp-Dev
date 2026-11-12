@@ -19,6 +19,6 @@ target_link_libraries(${PROJECT_NAME}_test
     GTest::gtest_main
 )
 
-project_name_configure_cxx_target(${PROJECT_NAME}_test)
+mylib_configure_cxx_target(${PROJECT_NAME}_test)
 
 gtest_discover_tests(${PROJECT_NAME}_test)

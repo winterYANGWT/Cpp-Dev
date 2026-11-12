@@ -20,7 +20,7 @@ from unittest import mock
 ROOT_DIR = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = ROOT_DIR / "scripts"
 COVERAGE_SCRIPT = SCRIPTS_DIR / "coverage.py"
-OPTIONS_MODULE = ROOT_DIR / "cmake" / "project_nameOptions.cmake"
+OPTIONS_MODULE = ROOT_DIR / "cmake" / "mylibOptions.cmake"
 PRESETS_FILE = ROOT_DIR / "CMakePresets.json"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 QUALITY_SCRIPT = SCRIPTS_DIR / "quality.py"
@@ -94,8 +94,8 @@ class CoverageContractTest(unittest.TestCase):
                 "BUILD_SHARED_LIBS": "OFF",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "project_name_ENABLE_COVERAGE": "ON",
-                "project_name_WARNINGS_AS_ERRORS": "ON",
+                "mylib_ENABLE_COVERAGE": "ON",
+                "mylib_WARNINGS_AS_ERRORS": "ON",
             },
         )
 
@@ -130,7 +130,7 @@ class CoverageContractTest(unittest.TestCase):
                 continue
             cache_variables = preset.get("cacheVariables", {})
             self.assertNotEqual(
-                cache_variables.get("project_name_ENABLE_COVERAGE"),
+                cache_variables.get("mylib_ENABLE_COVERAGE"),
                 "ON",
                 f"The {name} configure preset must not enable coverage.",
             )

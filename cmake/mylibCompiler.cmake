@@ -2,15 +2,15 @@
 # options; the template has no MSVC-style options, so MSVC and clang-cl fail
 # here instead of getting options that they do not understand. AppleClang
 # takes the same options as Clang, so it is not rejected.
-function(project_name_check_compiler)
+function(mylib_check_compiler)
   if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
       OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     message(FATAL_ERROR "${PROJECT_NAME} supports only GCC and Clang with GNU-style options, not ${CMAKE_CXX_COMPILER_ID} (${CMAKE_CXX_COMPILER})")
   endif()
 endfunction()
 
-function(project_name_configure_cxx_target target)
-  project_name_check_compiler()
+function(mylib_configure_cxx_target target)
+  mylib_check_compiler()
 
   set_target_properties(${target} PROPERTIES
     CXX_STANDARD 20
@@ -71,8 +71,8 @@ function(project_name_configure_cxx_target target)
   endif()
 endfunction()
 
-function(project_name_configure_cxx_interface_target target)
-  project_name_check_compiler()
+function(mylib_configure_cxx_interface_target target)
+  mylib_check_compiler()
 
   target_compile_features(${target}
     INTERFACE

@@ -12,14 +12,14 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-OPTIONS_MODULE = ROOT_DIR / "cmake" / "project_nameOptions.cmake"
-DOCS_MODULE = ROOT_DIR / "cmake" / "project_nameDocs.cmake"
+OPTIONS_MODULE = ROOT_DIR / "cmake" / "mylibOptions.cmake"
+DOCS_MODULE = ROOT_DIR / "cmake" / "mylibDocs.cmake"
 DOXYFILE_TEMPLATE = ROOT_DIR / "docs" / "Doxyfile.in"
 ROOT_LISTS = ROOT_DIR / "CMakeLists.txt"
 PRESETS_FILE = ROOT_DIR / "CMakePresets.json"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 LINUX_TOOLS_SCRIPT = ROOT_DIR / "scripts" / "install_linux_tools.sh"
-DOCS_TARGET = "project_name_docs"
+DOCS_TARGET = "mylib_docs"
 # Doxygen before 1.13 does not report undocumented namespaces.
 NAMESPACE_CHECK_VERSION = (1, 13)
 
@@ -42,12 +42,12 @@ function(add_custom_target)
 endfunction()
 
 file(WRITE "${PROBE_OUTPUT}" "")
-set(PROJECT_NAME project_name)
+set(PROJECT_NAME mylib)
 set(PROJECT_VERSION 0.1.0)
 set(PROJECT_IS_TOP_LEVEL ON)
 include("${OPTIONS_MODULE}")
 include("${DOCS_MODULE}")
-project_name_add_docs_target()
+mylib_add_docs_target()
 """
 
 
@@ -110,7 +110,7 @@ class DocsContractTest(unittest.TestCase):
             "DOCS_MODULE": DOCS_MODULE.as_posix(),
             "PROJECT_SOURCE_DIR": source_dir.as_posix(),
             "PROJECT_BINARY_DIR": binary_dir.as_posix(),
-            "project_name_WARNINGS_AS_ERRORS": warnings_as_errors,
+            "mylib_WARNINGS_AS_ERRORS": warnings_as_errors,
         }
         result = subprocess.run(
             [
@@ -130,7 +130,7 @@ class DocsContractTest(unittest.TestCase):
         source_dir = self.temp_dir / "source"
         (source_dir / "docs").mkdir(parents=True)
         shutil.copy(DOXYFILE_TEMPLATE, source_dir / "docs" / "Doxyfile.in")
-        header_dir = source_dir / "include" / "project_name"
+        header_dir = source_dir / "include" / "mylib"
         header_dir.mkdir(parents=True)
         (header_dir / "api.h").write_text(header, encoding="utf-8")
         probe = self.probe(source_dir)
@@ -154,7 +154,7 @@ class DocsContractTest(unittest.TestCase):
         # Doxygen is only looked for when the documentation is enabled.
         self.assertRegex(
             ROOT_LISTS.read_text(encoding="utf-8"),
-            r"if\(\$\{PROJECT_NAME\}_BUILD_DOCS\)\s+project_name_add_docs_target\(\)\s+endif\(\)",
+            r"if\(\$\{PROJECT_NAME\}_BUILD_DOCS\)\s+mylib_add_docs_target\(\)\s+endif\(\)",
         )
 
     def test_docs_target_runs_doxygen_on_the_public_headers(self) -> None:
@@ -183,7 +183,7 @@ class DocsContractTest(unittest.TestCase):
         for name, value in expected.items():
             with self.subTest(setting=name):
                 self.assertEqual(result.doxyfile.get(name), value)
-        self.assertIn("PROJECT_NAME_EXPORT=", result.doxyfile["PREDEFINED"].split())
+        self.assertIn("MYLIB_EXPORT=", result.doxyfile["PREDEFINED"].split())
         self.assertNotRegex(
             result.doxyfile_path.read_text(encoding="utf-8"), r"@[A-Za-z_]+@"
         )
@@ -218,10 +218,10 @@ class DocsContractTest(unittest.TestCase):
         self.assertEqual(
             configure["cacheVariables"],
             {
-                "project_name_BUILD_DOCS": "ON",
-                "project_name_BUILD_TESTS": "OFF",
-                "project_name_INSTALL": "OFF",
-                "project_name_WARNINGS_AS_ERRORS": "ON",
+                "mylib_BUILD_DOCS": "ON",
+                "mylib_BUILD_TESTS": "OFF",
+                "mylib_INSTALL": "OFF",
+                "mylib_WARNINGS_AS_ERRORS": "ON",
             },
         )
         self.assertEqual(configure["binaryDir"], "${sourceDir}/build/docs")
@@ -267,9 +267,9 @@ class DocsContractTest(unittest.TestCase):
     def test_doxygen_rejects_undocumented_public_api(self) -> None:
         result, _ = self.run_doxygen(
             "/** @brief Documented namespace. */\n"
-            "namespace project_name {\n"
+            "namespace mylib {\n"
             "int Undocumented();\n"
-            "}  // namespace project_name\n"
+            "}  // namespace mylib\n"
         )
 
         self.assertNotEqual(result.returncode, 0)
@@ -281,15 +281,15 @@ class DocsContractTest(unittest.TestCase):
     )
     def test_doxygen_rejects_undocumented_namespace(self) -> None:
         result, _ = self.run_doxygen(
-            "namespace project_name {\n"
+            "namespace mylib {\n"
             "/** @brief Documented function. */\n"
             "int Documented();\n"
-            "}  // namespace project_name\n"
+            "}  // namespace mylib\n"
         )
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(
-            "Namespace project_name is not documented", result.stdout + result.stderr
+            "Namespace mylib is not documented", result.stdout + result.stderr
         )
 
 

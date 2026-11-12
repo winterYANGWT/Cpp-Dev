@@ -37,7 +37,7 @@
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "project_name_WARNINGS_AS_ERRORS": "ON"
+        "mylib_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -49,8 +49,8 @@
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "project_name_ENABLE_SANITIZERS": "ON",
-        "project_name_WARNINGS_AS_ERRORS": "ON"
+        "mylib_ENABLE_SANITIZERS": "ON",
+        "mylib_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -62,8 +62,8 @@
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "project_name_ENABLE_THREAD_SANITIZER": "ON",
-        "project_name_WARNINGS_AS_ERRORS": "ON"
+        "mylib_ENABLE_THREAD_SANITIZER": "ON",
+        "mylib_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -75,8 +75,8 @@
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "project_name_ENABLE_COVERAGE": "ON",
-        "project_name_WARNINGS_AS_ERRORS": "ON"
+        "mylib_ENABLE_COVERAGE": "ON",
+        "mylib_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -85,10 +85,10 @@
       "description": "Generate the API documentation with Doxygen; Doxygen warnings are errors.",
       "binaryDir": "${sourceDir}/build/docs",
       "cacheVariables": {
-        "project_name_BUILD_DOCS": "ON",
-        "project_name_BUILD_TESTS": "OFF",
-        "project_name_INSTALL": "OFF",
-        "project_name_WARNINGS_AS_ERRORS": "ON"
+        "mylib_BUILD_DOCS": "ON",
+        "mylib_BUILD_TESTS": "OFF",
+        "mylib_INSTALL": "OFF",
+        "mylib_WARNINGS_AS_ERRORS": "ON"
       }
     }
   ],
@@ -134,7 +134,7 @@
       "displayName": "Docs",
       "configurePreset": "docs",
       "targets": [
-        "project_name_docs"
+        "mylib_docs"
       ]
     }
   ],

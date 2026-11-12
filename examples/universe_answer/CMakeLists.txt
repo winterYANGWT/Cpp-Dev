@@ -8,7 +8,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 option(universe_answer_WARNINGS_AS_ERRORS "Treat universe_answer compiler warnings as errors" OFF)
 
-find_package(project_name CONFIG REQUIRED)
+find_package(mylib CONFIG REQUIRED)
 
 add_executable(universe_answer_cli
   src/main.cc
@@ -16,7 +16,7 @@ add_executable(universe_answer_cli
 
 target_link_libraries(universe_answer_cli
   PRIVATE
-    project_name::project_name
+    mylib::mylib
 )
 
 set_target_properties(universe_answer_cli PROPERTIES

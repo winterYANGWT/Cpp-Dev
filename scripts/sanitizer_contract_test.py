@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-COMPILER_MODULE = ROOT_DIR / "cmake" / "project_nameCompiler.cmake"
+COMPILER_MODULE = ROOT_DIR / "cmake" / "mylibCompiler.cmake"
 PRESETS_FILE = ROOT_DIR / "CMakePresets.json"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 COMPILE_OPTIONS_RE = re.compile(r"target_compile_options\(([^()]*)\)")
@@ -45,7 +45,7 @@ class SanitizerContractTest(unittest.TestCase):
         }
 
         cache_variables = configure_presets["asan-ubsan"]["cacheVariables"]
-        self.assertEqual(cache_variables.get("project_name_ENABLE_SANITIZERS"), "ON")
+        self.assertEqual(cache_variables.get("mylib_ENABLE_SANITIZERS"), "ON")
 
     def test_tsan_preset_enables_only_thread_sanitizer(self) -> None:
         presets = json.loads(PRESETS_FILE.read_text(encoding="utf-8"))
@@ -55,10 +55,10 @@ class SanitizerContractTest(unittest.TestCase):
 
         cache_variables = configure_presets["tsan"]["cacheVariables"]
         self.assertEqual(
-            cache_variables.get("project_name_ENABLE_THREAD_SANITIZER"),
+            cache_variables.get("mylib_ENABLE_THREAD_SANITIZER"),
             "ON",
         )
-        self.assertNotEqual(cache_variables.get("project_name_ENABLE_SANITIZERS"), "ON")
+        self.assertNotEqual(cache_variables.get("mylib_ENABLE_SANITIZERS"), "ON")
         for kind in ("buildPresets", "testPresets"):
             with self.subTest(kind=kind):
                 self.assertIn("tsan", [preset["name"] for preset in presets[kind]])

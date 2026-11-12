@@ -11,13 +11,13 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-OPTIONS_MODULE = ROOT_DIR / "cmake" / "project_nameOptions.cmake"
-COMPILER_MODULE = ROOT_DIR / "cmake" / "project_nameCompiler.cmake"
+OPTIONS_MODULE = ROOT_DIR / "cmake" / "mylibOptions.cmake"
+COMPILER_MODULE = ROOT_DIR / "cmake" / "mylibCompiler.cmake"
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
 EXAMPLE_LISTS = ROOT_DIR / "examples" / "universe_answer" / "CMakeLists.txt"
 CONFIGURE_FUNCTIONS = (
-    "project_name_configure_cxx_target",
-    "project_name_configure_cxx_interface_target",
+    "mylib_configure_cxx_target",
+    "mylib_configure_cxx_interface_target",
 )
 BUILD_INTERFACE_RE = re.compile(r"^\$<BUILD_INTERFACE:(.*)>$")
 
@@ -94,7 +94,7 @@ file(WRITE "${PROBE_OUTPUT}" "")
 if(DEFINED PROBE_EXAMPLE_LISTS)
   include("${PROBE_EXAMPLE_LISTS}")
 else()
-  set(PROJECT_NAME project_name)
+  set(PROJECT_NAME mylib)
   set(PROJECT_IS_TOP_LEVEL ON)
   include("${OPTIONS_MODULE}")
   include("${COMPILER_MODULE}")
@@ -145,9 +145,9 @@ class CompilerOptionsContractTest(unittest.TestCase):
                 "PROBE_FUNCTION": function,
                 "OPTIONS_MODULE": OPTIONS_MODULE.as_posix(),
                 "COMPILER_MODULE": COMPILER_MODULE.as_posix(),
-                "project_name_WARNINGS_AS_ERRORS": "ON",
+                "mylib_WARNINGS_AS_ERRORS": "ON",
                 **compiler,
-                **{f"project_name_{name}": value for name, value in options.items()},
+                **{f"mylib_{name}": value for name, value in options.items()},
             }
         )
 

@@ -1,7 +1,7 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-function(project_name_install_package target)
+function(mylib_install_package target)
   install(
     TARGETS ${target}
     EXPORT ${PROJECT_NAME}Targets

@@ -15,15 +15,15 @@ import quality
 class HeaderSmokeContractTest(unittest.TestCase):
     def test_public_header_files_selects_include_headers_in_order(self) -> None:
         header_files = [
-            "include/mylib/a.h",
-            "include/mylib/sub/b.hpp",
+            "include/somelib/a.h",
+            "include/somelib/sub/b.hpp",
             "src/detail.h",
             "test/helper.h",
             "tests/fixture.hpp",
             "examples/demo/include/demo.h",
             "tools/include/x.h",
         ]
-        expected = ["include/mylib/a.h", "include/mylib/sub/b.hpp"]
+        expected = ["include/somelib/a.h", "include/somelib/sub/b.hpp"]
 
         self.assertEqual(
             quality.public_header_files(header_files),
@@ -51,8 +51,8 @@ class HeaderSmokeContractTest(unittest.TestCase):
             }
         ]
         header_files = [
-            "include/mylib/a.h",
-            "include/mylib/sub/b.hpp",
+            "include/somelib/a.h",
+            "include/somelib/sub/b.hpp",
             "src/detail.h",
             "test/helper.h",
             "tests/fixture.hpp",
@@ -102,7 +102,7 @@ class HeaderSmokeContractTest(unittest.TestCase):
             )
             quality.run_quality_tidy()
 
-        expected_headers = ["include/mylib/a.h", "include/mylib/sub/b.hpp"]
+        expected_headers = ["include/somelib/a.h", "include/somelib/sub/b.hpp"]
         self.assertEqual(
             len(smoke_calls),
             1,
@@ -194,15 +194,15 @@ class HeaderSmokeContractTest(unittest.TestCase):
         self,
     ) -> None:
         self.assertEqual(
-            quality.header_include_directive("include/mylib/a.h"),
-            "#include <mylib/a.h>",
+            quality.header_include_directive("include/somelib/a.h"),
+            "#include <somelib/a.h>",
             "a public header should be included relative to include/ with "
             "angle brackets.",
         )
-        native_path = str(Path("include/mylib/sub/b.hpp"))
+        native_path = str(Path("include/somelib/sub/b.hpp"))
         self.assertEqual(
             quality.header_include_directive(native_path),
-            "#include <mylib/sub/b.hpp>",
+            "#include <somelib/sub/b.hpp>",
             "native path separators should not leak into the include directive "
             f"for {native_path!r}.",
         )

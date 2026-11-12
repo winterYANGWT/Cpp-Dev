@@ -1,6 +1,6 @@
 # Scripts
 
-This directory contains project maintenance scripts for the CPP-DEV template.
+This directory contains project maintenance scripts for cpp-library-template.
 
 ## `quality.py`
 
@@ -26,19 +26,19 @@ python3 scripts/quality.py check
 
 ### CMake Configuration Overrides
 
-Set `CPP_DEV_CMAKE_CONFIGURE_ARGS` to append CMake configure arguments to `cmake --preset quality`.
-This is intended for CI and one-off verification of build variants.
+Set `QUALITY_CMAKE_ARGS` to append CMake configure arguments to `cmake --preset quality`.
+This is intended for CI and one-off verification of build variants. The variable has the same name in every project created from the template, so it can also be set once in a shell profile, for example to `-G Ninja`.
 
 ```sh
-CPP_DEV_CMAKE_CONFIGURE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
+QUALITY_CMAKE_ARGS="-DBUILD_SHARED_LIBS=ON" python3 scripts/quality.py check
 ```
 
-`quality.py` reads `build/quality/compile_commands.json` for the strict C++20 check and for `clang-tidy`. Ninja and Makefile generators write it. Without it, `test` and `package` print a warning and skip the strict C++20 check, while `tidy` and `check` stop right after configuring. Add `-G Ninja` to `CPP_DEV_CMAKE_CONFIGURE_ARGS` to use Ninja, and remove `build/quality` when switching generators.
+`quality.py` reads `build/quality/compile_commands.json` for the strict C++20 check and for `clang-tidy`. Ninja and Makefile generators write it. Without it, `test` and `package` print a warning and skip the strict C++20 check, while `tidy` and `check` stop right after configuring. Add `-G Ninja` to `QUALITY_CMAKE_ARGS` to use Ninja, and remove `build/quality` when switching generators.
 
 To check the build with another compiler, pass it in the same variable, as the CI quality job does for GCC and Clang. Remove `build/quality` first: a CMake build directory cannot switch compilers.
 
 ```sh
-CPP_DEV_CMAKE_CONFIGURE_ARGS="-DCMAKE_CXX_COMPILER=clang++" python3 scripts/quality.py check
+QUALITY_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=clang++" python3 scripts/quality.py check
 ```
 
 The template does not fetch GoogleTest automatically. If `find_package(GTest CONFIG)` fails, install GoogleTest with your preferred package manager or build it yourself, then rerun CMake with `CMAKE_PREFIX_PATH` or `GTest_DIR` pointing at the package config location.
@@ -51,13 +51,13 @@ the `Debug` configuration of the current quality build under
 prefix, builds the downstream `universe_answer_cli` executable, then runs CTest
 for the example project.
 
-The example is configured with the same `CPP_DEV_CMAKE_CONFIGURE_ARGS` as the
+The example is configured with the same `QUALITY_CMAKE_ARGS` as the
 library, so both use the same generator, compiler, and toolchain. A
 `CMAKE_PREFIX_PATH` in those arguments is appended after the install prefix.
 
 The package step also turns on `universe_answer_WARNINGS_AS_ERRORS` and
 `CMAKE_EXPORT_COMPILE_COMMANDS` for the example, overriding any values in
-`CPP_DEV_CMAKE_CONFIGURE_ARGS`. Compiler warnings in the example fail the build,
+`QUALITY_CMAKE_ARGS`. Compiler warnings in the example fail the build,
 and `check` then runs `clang-tidy` on the example's sources with the example's
 own compile database.
 
@@ -94,7 +94,7 @@ python3 scripts/coverage.py
 python3 scripts/coverage.py --gcov-executable "xcrun llvm-cov gcov"
 ```
 
-The script configures, builds, and tests the `coverage` preset in `build/coverage`, which compiles with `--coverage -O0`. It deletes the `.gcda` counters after the build and before CTest, because the build runs the test executable to list the tests and earlier runs leave counters behind. gcovr then writes `coverage.txt` and an HTML report with one page per file to `build/coverage-report/`, and prints a summary. The report covers only files under `src/` and `include/`; files that no test executable links are listed with 0%. `CPP_DEV_CMAKE_CONFIGURE_ARGS` works as for `quality.py`. To switch compilers, remove `build/coverage` first.
+The script configures, builds, and tests the `coverage` preset in `build/coverage`, which compiles with `--coverage -O0`. It deletes the `.gcda` counters after the build and before CTest, because the build runs the test executable to list the tests and earlier runs leave counters behind. gcovr then writes `coverage.txt` and an HTML report with one page per file to `build/coverage-report/`, and prints a summary. The report covers only files under `src/` and `include/`; files that no test executable links are listed with 0%. `QUALITY_CMAKE_ARGS` works as for `quality.py`. To switch compilers, remove `build/coverage` first.
 
 gcov data is specific to the compiler: GCC's `gcov` cannot read Clang's files, and `llvm-cov gcov` cannot read GCC's. The script asks CMake for the compiler and picks the matching tool: `gcov-N` or `gcov` for GCC N, and for Clang the `llvm-cov` next to the real compiler, then `llvm-cov-N` or `llvm-cov` on `PATH`. If it finds none, pass the command with `--gcov-executable`. Other compilers are not supported.
 
@@ -151,10 +151,10 @@ for test in scripts/*_test.py; do python3 "$test"; done
 - `gitignore_contract_test.py` verifies that user-local files such as `CMakeUserPresets.json` are ignored. It is skipped outside a git work tree.
 - `header_smoke_contract_test.py` verifies that `quality.py tidy` generates header smoke translation units only for headers under the top-level `include/` directory, that it runs no header smoke pass when there are no public headers, and that each smoke file includes its header with angle brackets relative to `include/`.
 - `license_docs_contract_test.py` verifies that the root `LICENSE` holds the GPL-3.0 text, that `docs/license.md` describes GPL-3.0 as a recommendation, not a requirement, permits libraries created from the template to replace it, lists common alternatives, and names the files to change when replacing it, and that `README.md` links to that page without calling the license choice settled.
-- `package_version_contract_test.py` builds and installs the library as a shared library and verifies that the SONAME is `lib{project_name}.so.MAJOR.MINOR`, that the install tree links `lib{project_name}.so` to it and it to the fully versioned file, and that the installed package version file accepts only requests with the same major and minor version. It repeats the checks with the project version set to 1.2.3 in a copy of the repository, so the rule does not change after 1.0. The build checks use Ninja when it is on `PATH` and `CMAKE_GENERATOR` is not set, run only on Linux, and are skipped when `cmake` is not installed. The test also verifies that the README's Install Contract section states the rule.
+- `package_version_contract_test.py` builds and installs the library as a shared library and verifies that the SONAME is `libmylib.so.MAJOR.MINOR`, that the install tree links `libmylib.so` to it and it to the fully versioned file, and that the installed package version file accepts only requests with the same major and minor version. It repeats the checks with the project version set to 1.2.3 in a copy of the repository, so the rule does not change after 1.0. The build checks use Ninja when it is on `PATH` and `CMAKE_GENERATOR` is not set, run only on Linux, and are skipped when `cmake` is not installed. The test also verifies that the README's Install Contract section states the rule.
 - `pre_commit_contract_test.py` verifies that the pre-commit hook only runs `quality.py format --check` with pre-commit's Python, and that the hook is documented as opt-in.
-- `quality_generator_contract_test.py` verifies that `quality.py` installs and tests the configuration built by the quality presets, configures the package example with the library's CMake arguments plus warnings as errors and a compile database, that `check` runs `clang-tidy` on the example with that database, and that it handles generators without `compile_commands.json`: `test` and `package` warn, while `tidy` and `check` fail before building. It records the commands `quality.py` would run instead of running them.
-- `rename_project_contract_test.py` renames a copy of the repository and verifies that `rename_project.py` leaves itself unchanged, including in `--dry-run` output, that every placeholder path is renamed, and that no other file still contains the placeholder.
+- `quality_generator_contract_test.py` verifies that `quality.py` installs and tests the configuration built by the quality presets, configures the package example with the library's CMake arguments plus warnings as errors and a compile database, that `check` runs `clang-tidy` on the example with that database, and that it handles generators without `compile_commands.json`: `test` and `package` warn, while `tidy` and `check` fail before building. It also verifies that CI sets the environment variable that `quality.py` reads. It records the commands `quality.py` would run instead of running them.
+- `rename_project_contract_test.py` renames a copy of the repository and verifies that `rename_project.py` leaves itself unchanged, including in `--dry-run` output, that it replaces the placeholder in lowercase and uppercase, in file contents and in file and directory names, so that no other file still contains it, that CMake's `${PROJECT_NAME}` and `@PROJECT_NAME@` are untouched, that it skips the same directories as `quality.py`, and that it neither follows nor rewrites symbolic links, including dangling ones.
 - `sanitizer_contract_test.py` verifies that the `asan-ubsan` preset enables sanitizers and that every ASan/UBSan compile option block also passes `-fno-sanitize-recover=all`, so UndefinedBehaviorSanitizer reports fail the test run. It also verifies that the `tsan` presets enable only ThreadSanitizer, that CI runs both sanitizer presets, and that the CI job builds and runs the `tsan` tests under `setarch -R` in a container that allows it.
 - `template_version_contract_test.py` verifies that the root `TEMPLATE_VERSION` file contains exactly one `vX.Y.Z` line.
 - `text_policy_contract_test.py` verifies that `.editorconfig` and `.gitattributes` keep the LF line ending policy, with CRLF for Windows batch scripts and common binary formats marked as binary, and that tracked text files are stored with LF. The `.gitattributes` and index checks are skipped outside a git work tree.
@@ -177,4 +177,4 @@ python3 scripts/rename_project.py my_library --dry-run
 python3 scripts/rename_project.py my_library
 ```
 
-The script replaces `project_name` in text files, replaces export macro tokens such as `PROJECT_NAME_EXPORT`, replaces template header guards such as `PROJECT_NAME_PROJECT_NAME_H_`, and renames placeholder paths such as the public include directory, source file, test file, and package config template. It does not replace CMake's `${PROJECT_NAME}` variable, and it leaves its own file unchanged, so the script keeps the template placeholder as its default `--from` value. Use `--dry-run` first, then run `python3 scripts/quality.py check` after renaming.
+The script replaces the template's placeholder name, the `DEFAULT_FROM` value in `rename_project.py`, in two forms: lowercase, as in the namespace, the CMake targets, and the include directory, and uppercase, as in the export macro and the header guards. It replaces both forms in text files and in file and directory names. CMake's own `${PROJECT_NAME}` variable and `@PROJECT_NAME@` are not touched. The script skips the same directories as `quality.py` (`SKIPPED_DIRECTORY_NAMES`), such as build, dependency, and virtual environment directories, does not follow symbolic links, and leaves its own file unchanged, so it keeps the template placeholder as its default `--from` value. To rename an already renamed project again, pass its current name with `--from`. Use `--dry-run` first, then run `python3 scripts/quality.py check` after renaming.

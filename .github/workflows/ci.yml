@@ -11,6 +11,18 @@ on:
       - "release/**"
   workflow_dispatch:
 
+# Every job's GITHUB_TOKEN can only read the repository, whatever the
+# repository or organization default is. A job that needs more should
+# declare it in its own permissions block instead of widening this one.
+permissions:
+  contents: read
+
+# A new run for the same branch or pull request cancels the older one,
+# also on main and release branches.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Tool versions follow docs/tool-versions.md: scripts/tool-requirements.txt
 # lists the PyPI tools, and every job checks them with tool_versions.py
 # --strict. Runner labels are pinned, so that a new runner image does not
@@ -20,6 +32,12 @@ on:
 # installs the same tools on any Debian or Ubuntu image, so the setup can be
 # reproduced locally with Docker. The image has no git; each Linux job installs
 # it before the checkout, so that the checkout is a git work tree.
+#
+# Actions are pinned to a full commit SHA, with the release in a trailing
+# comment, so that moving a tag cannot change what runs. To update an
+# action, look up the commit of the new release tag and change both.
+# Checkout does not keep the token in the git configuration: no step after
+# it uses git over the network.
 
 jobs:
   contracts:
@@ -34,7 +52,9 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install tools
         run: |
@@ -68,7 +88,9 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install tools
         run: |
@@ -108,11 +130,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
+      # StepSecurity maintains this fork of ilammy/msvc-dev-cmd, which is no
+      # longer maintained. The fork is free for public repositories. In a
+      # private repository it needs a StepSecurity subscription, or the step
+      # fails; a private project can replace it with a step that runs
+      # vcvars64.bat and writes the environment to GITHUB_ENV.
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: step-security/msvc-dev-cmd@22c98154b708dbd743e6f27a933cf6ceba3305c4 # v1.13.1
 
       # runner context is available in step properties, but not in job-level
       # env; the image version is a runner environment variable, so read it in
@@ -127,7 +156,7 @@ jobs:
 
       - name: Cache vcpkg binaries
         if: runner.os == 'Windows'
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/vcpkg-cache
           key: vcpkg-${{ runner.os }}-${{ steps.image-version.outputs.version }}
@@ -140,7 +169,7 @@ jobs:
       - name: Cache LLVM for clang-cl
         if: matrix.compiler == 'clang-cl'
         id: llvm-cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/llvm-21.1.8
           key: llvm-21.1.8-${{ runner.os }}-clang-cl-v1
@@ -269,7 +298,9 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install tools
         run: |
@@ -304,7 +335,9 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install tools
         run: |
@@ -339,7 +372,9 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates git
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # Debian 13 provides Doxygen 1.9.8, which does not report undocumented
       # namespaces; --doxygen installs the recommended release instead.

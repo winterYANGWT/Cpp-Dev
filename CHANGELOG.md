@@ -68,6 +68,14 @@ starting from an empty Unreleased section.
   are pinned instead of `-latest`.
 - The ThreadSanitizer CI job disables address space randomization with
   `setarch` instead of changing the kernel setting.
+- CI jobs get a read-only `GITHUB_TOKEN`, and checkout does not keep the token
+  for the steps after it. A new CI run for the same branch or pull request
+  cancels the older one.
+- CI actions are pinned to commit SHAs and updated to releases that run on
+  Node.js 24: `actions/checkout` 7.0.1 and `actions/cache` 6.1.0. The MSVC
+  environment comes from `step-security/msvc-dev-cmd` 1.13.1, a maintained
+  fork of `ilammy/msvc-dev-cmd`, which needs a StepSecurity subscription in
+  private repositories.
 - The shared library's SONAME carries the project's major and minor version,
   such as `libproject_name.so.0.1`, and the package version file uses
   `SameMinorVersion` instead of `SameMajorVersion`. Only patch releases promise

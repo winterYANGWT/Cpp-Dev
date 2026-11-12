@@ -87,6 +87,33 @@ Every CI job installs the recommended versions and runs
 GoogleTest comes from the platform's package manager: Debian, Homebrew, or
 vcpkg. Its version does not affect results.
 
+### Actions and Token
+
+The workflow uses three actions: `actions/checkout`, `actions/cache`, and on
+Windows `step-security/msvc-dev-cmd`. Each is pinned to the full commit SHA of
+a release, with the release in a trailing comment, so that moving a tag cannot
+change what runs. To update an action, look up the commit of the new release,
+for example with
+`git ls-remote --tags https://github.com/actions/checkout v7.0.1` (for an
+annotated tag, use the line that ends in `^{}`), and change both the SHA and
+the comment. Use one release of each action in the whole workflow;
+`scripts/ci_hardening_contract_test.py` checks this.
+
+`step-security/msvc-dev-cmd` is StepSecurity's maintained fork of
+`ilammy/msvc-dev-cmd`, which is no longer maintained. It is free for public
+repositories. In a private repository it needs a StepSecurity subscription,
+and without one the step fails. A private project can subscribe, or replace
+the step with one that runs Visual Studio's `vcvars64.bat` and writes the
+environment to `GITHUB_ENV`.
+
+Every job's `GITHUB_TOKEN` can only read the repository, whatever the
+repository or organization default is: the workflow sets
+`permissions: contents: read`. Checkout runs with
+`persist-credentials: false`, so the token is not left in the git
+configuration for the tools and tests that run after it. A job that needs more,
+for example to publish documentation, should declare it in its own
+`permissions` block instead of widening the workflow's.
+
 ### Caches
 
 The Windows jobs spend most of their time setting up tools, and the slowest job

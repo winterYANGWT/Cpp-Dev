@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 CI_WORKFLOW = ROOT_DIR / ".github" / "workflows" / "ci.yml"
-CACHE_ACTION = "actions/cache@v4"
+CACHE_ACTION = "actions/cache@"
 STEP_RE = re.compile(r"^      - name: (.+)$", re.M)
 
 

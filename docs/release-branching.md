@@ -38,6 +38,8 @@ The default GitHub Actions CI trigger is intentionally release-oriented:
 - CI runs for pull requests targeting `main` or `release/**`.
 - CI can be started manually with `workflow_dispatch`.
 - `dev` does not run CI by default.
+- A new run for the same branch or pull request cancels the older one, also on
+  `main` and `release/**`.
 
 The `dev` branch is an integration branch for upcoming work, but this template
 does not force every update to run the full CI matrix. Developers are expected

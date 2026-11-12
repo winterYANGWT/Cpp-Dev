@@ -4,8 +4,8 @@
 # same results.
 #
 # Install them into a virtual environment outside the repository:
-#   python3 -m venv ~/.venvs/cpp-dev-tools
-#   ~/.venvs/cpp-dev-tools/bin/pip install -r scripts/tool-requirements.txt
+#   python3 -m venv ~/.venvs/cpp-tools
+#   ~/.venvs/cpp-tools/bin/pip install -r scripts/tool-requirements.txt
 clang-format==21.1.*
 clang-tidy==21.1.*
 cmake==4.2.*

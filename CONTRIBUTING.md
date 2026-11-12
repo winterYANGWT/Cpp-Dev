@@ -1,7 +1,7 @@
 # Contributing
 
 <!--
-Template: projects created from CPP-DEV should review this guide and adjust
+Template: projects created from cpp-library-template should review this guide and adjust
 the branch flow, required checks, and commit conventions to match the project.
 -->
 

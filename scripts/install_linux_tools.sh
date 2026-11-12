@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the tools for the CPP-DEV quality gate on a Debian or Ubuntu system,
+# Installs the tools for the cpp-library-template quality gate on a Debian or Ubuntu system,
 # such as the debian:13-slim image that CI uses. Run it as root or as a user
 # with sudo:
 #

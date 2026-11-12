@@ -1,7 +1,7 @@
 # Security Policy
 
 <!--
-Template: projects created from CPP-DEV should list the versions they support
+Template: projects created from cpp-library-template should list the versions they support
 and enable private vulnerability reporting in the repository settings
 (Settings > Code security > Private vulnerability reporting).
 -->

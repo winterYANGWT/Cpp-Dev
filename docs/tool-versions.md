@@ -53,9 +53,9 @@ Install clang-format, clang-tidy, CMake, and Ninja from PyPI into a virtual
 environment, then put its `bin` directory first on `PATH`:
 
 ```sh
-python3 -m venv ~/.venvs/cpp-dev-tools
-~/.venvs/cpp-dev-tools/bin/pip install -r scripts/tool-requirements.txt
-export PATH="$HOME/.venvs/cpp-dev-tools/bin:$PATH"
+python3 -m venv ~/.venvs/cpp-tools
+~/.venvs/cpp-tools/bin/pip install -r scripts/tool-requirements.txt
+export PATH="$HOME/.venvs/cpp-tools/bin:$PATH"
 ```
 
 Keep the virtual environment outside the repository: `quality.py` checks every
@@ -142,7 +142,7 @@ apt-get update && apt-get install -y --no-install-recommends ca-certificates git
 sh scripts/install_linux_tools.sh /opt/tools
 export PATH="/opt/tools/bin:$PATH"
 python3 scripts/tool_versions.py --strict
-CPP_DEV_CMAKE_CONFIGURE_ARGS="-G Ninja" python3 scripts/quality.py check
+QUALITY_CMAKE_ARGS="-G Ninja" python3 scripts/quality.py check
 ```
 
 The container builds in the mounted `build/` directory. Remove `build/quality`

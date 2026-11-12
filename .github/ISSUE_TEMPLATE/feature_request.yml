@@ -1,4 +1,4 @@
-# Template: projects created from CPP-DEV can adjust the labels and fields.
+# Template: projects created from cpp-library-template can adjust the labels and fields.
 name: Feature request
 description: Suggest a new feature or an improvement.
 labels:

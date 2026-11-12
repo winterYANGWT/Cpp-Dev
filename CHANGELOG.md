@@ -7,7 +7,7 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--
-Template: the entries below record changes to the CPP-DEV template itself.
+Template: the entries below record changes to the cpp-library-template template itself.
 Projects created from the template should replace them with their own history,
 starting from an empty Unreleased section.
 -->
@@ -19,7 +19,7 @@ starting from an empty Unreleased section.
 - `TEMPLATE_VERSION` file that records which template version a project is
   based on.
 - `.gitattributes` and `.editorconfig` with an LF line ending policy.
-- `tsan` preset and `project_name_ENABLE_THREAD_SANITIZER` option for
+- `tsan` preset and `mylib_ENABLE_THREAD_SANITIZER` option for
   ThreadSanitizer, with a CI job.
 - Optional pre-commit hook that checks formatting.
 - Contributing guide, security policy, changelog, and issue and pull request
@@ -28,7 +28,7 @@ starting from an empty Unreleased section.
   `Contract tests` CI job.
 - Warning options for the `universe_answer` example, with a
   `universe_answer_WARNINGS_AS_ERRORS` option.
-- `docs` preset and `project_name_BUILD_DOCS` option that generate API
+- `docs` preset and `mylib_BUILD_DOCS` option that generate API
   documentation with Doxygen, with a CI job that fails on undocumented public
   API.
 - Recommended tool versions in `docs/tool-versions.md`: clang-format and
@@ -40,7 +40,7 @@ starting from an empty Unreleased section.
 - `docs/license.md`, which explains why the template recommends GPL-3.0, what
   it means for users of a library, and how to replace it.
 - Optional coverage reports: the `coverage` preset and
-  `project_name_ENABLE_COVERAGE` option build with `--coverage` on GCC and
+  `mylib_ENABLE_COVERAGE` option build with `--coverage` on GCC and
   Clang, and `scripts/coverage.py` writes a gcovr report of `src/` and
   `include/`. A CI job uploads the report as an artifact. Coverage is
   advisory: it has no threshold and is not part of `quality.py check`.
@@ -64,7 +64,7 @@ starting from an empty Unreleased section.
   print a warning instead.
 - `quality.py check` runs `clang-tidy` on the example as well, and the package
   consumer check builds the example with warnings as errors.
-- `project_name_WARNINGS_AS_ERRORS` also turns Doxygen warnings into errors.
+- `mylib_WARNINGS_AS_ERRORS` also turns Doxygen warnings into errors.
 - CI installs the recommended tool versions and fails when a job runs other
   versions. CI jobs run in a `debian:13-slim` container, and runner labels
   are pinned instead of `-latest`.
@@ -75,8 +75,21 @@ starting from an empty Unreleased section.
   cancels the older one.
 - CI actions are pinned to commit SHAs and use releases that run on
   Node.js 24, such as `actions/checkout` 7.0.1.
+- The placeholder project name is no longer `project_name`, whose uppercase
+  form is CMake's `PROJECT_NAME` variable. The new placeholder is unique in
+  lowercase and in uppercase, so `scripts/rename_project.py` replaces both
+  forms in file contents and in file and directory names, instead of only the
+  lowercase name and two uppercase macros.
+- The template is named `cpp-library-template` instead of `CPP-DEV`, and the
+  environment variable for extra CMake arguments to `quality.py` and
+  `coverage.py` is `QUALITY_CMAKE_ARGS` instead of
+  `CPP_DEV_CMAKE_CONFIGURE_ARGS`. The variable has the same name in every
+  project created from the template.
+- `rename_project.py` leaves itself unchanged, so that it keeps the template
+  placeholder as its default, and skips the same directories as `quality.py`,
+  now including `.venv`, `venv`, and `node_modules`.
 - The shared library's SONAME carries the project's major and minor version,
-  such as `libproject_name.so.0.1`, and the package version file uses
+  such as `libmylib.so.0.1`, and the package version file uses
   `SameMinorVersion` instead of `SameMajorVersion`. Only patch releases promise
   a compatible ABI, before and after 1.0.
 
@@ -100,3 +113,5 @@ starting from an empty Unreleased section.
 - `quality.py` reports a tool missing from `PATH` with one error line and
   exit status 1 instead of a Python traceback.
 - `CMakeUserPresets.json` is ignored by git.
+- `rename_project.py` no longer stops with an error at a dangling symbolic
+  link, and no longer follows symbolic links.
